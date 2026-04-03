@@ -1,10 +1,10 @@
 ﻿"use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
-import { Calendar, Clock, MoreHorizontal, Pencil, Trash2, X, ArrowRight, Check, XCircle, Loader2 } from "lucide-react";
+import { Calendar, Clock, MoreHorizontal, Pencil, Trash2, X, ArrowRight, Check, XCircle, Loader2, ChevronDown } from "lucide-react";
 import { formatDate, cn } from "@/lib/utils";
 import { companiesApi } from "@/lib/api-client";
 
@@ -34,6 +34,8 @@ const statusLabels: Record<string, string> = {
   rejected: "被拒绝",
 };
 
+const allStatuses = ["applied", "interviewing", "passed", "rejected"] as const;
+
 export function CompanyCard({ company, onStatusChanged, onDeleted, onSaved }: {
   company: Company;
   onStatusChanged?: () => void;
@@ -44,9 +46,21 @@ export function CompanyCard({ company, onStatusChanged, onDeleted, onSaved }: {
     useSortable({ id: company.id });
 
   const [showMenu, setShowMenu] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showTransition, setShowTransition] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
+  const statusRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (statusRef.current && !statusRef.current.contains(e.target as Node)) {
+        setShowStatusDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -97,10 +111,11 @@ export function CompanyCard({ company, onStatusChanged, onDeleted, onSaved }: {
           {canAdvance && (
             <button
               onClick={(e) => { e.stopPropagation(); setShowTransition(true); }}
-              className="rounded p-0.5 text-blue-600 opacity-0 hover:bg-blue-50 group-hover:opacity-100"
-              title="状态流转"
+              className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-[10px] font-medium text-white opacity-0 hover:bg-blue-700 group-hover:opacity-100"
+              title="推进流程"
             >
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="h-3 w-3" />
+              推进
             </button>
           )}
           <button
@@ -131,11 +146,36 @@ export function CompanyCard({ company, onStatusChanged, onDeleted, onSaved }: {
 
         <Link href={"/company/" + company.id}>
           <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
-            <div className="flex items-center gap-2 pr-14">
+            <div className="flex items-center gap-2 pr-20">
               <h3 className="text-sm font-semibold text-slate-900">{company.name}</h3>
-              <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-medium", statusColors[company.status] || "bg-slate-100 text-slate-600")}>
-                {statusLabels[company.status] || company.status}
-              </span>
+              <div ref={statusRef} className="relative">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowStatusDropdown(!showStatusDropdown); }}
+                  className={cn("inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium", statusColors[company.status] || "bg-slate-100 text-slate-600")}
+                >
+                  {statusLabels[company.status] || company.status}
+                  <ChevronDown className="h-2.5 w-2.5" />
+                </button>
+                {showStatusDropdown && (
+                  <div className="absolute left-0 z-30 mt-1 w-28 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                    {allStatuses.map((s) => (
+                      <div
+                        key={s}
+                        className={cn(
+                          "flex items-center gap-2 px-3 py-1.5 text-xs",
+                          company.status === s
+                            ? "font-medium text-slate-900"
+                            : "text-slate-400",
+                        )}
+                      >
+                        <span className={cn("h-2 w-2 rounded-full", s === "applied" ? "bg-blue-500" : s === "interviewing" ? "bg-amber-500" : s === "passed" ? "bg-green-500" : "bg-red-500")} />
+                        {statusLabels[s]}
+                        {company.status === s && <Check className="ml-auto h-3 w-3 text-blue-600" />}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <p className="mt-0.5 text-xs text-slate-500">{company.position}</p>
             <div className="mt-2 flex flex-wrap gap-1.5">
