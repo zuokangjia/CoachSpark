@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  backend:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    volumes:
+      - ./app:/app/app
+      - ./coachspark.db:/app/coachspark.db
+    environment:
+      - APP_ENV=development
