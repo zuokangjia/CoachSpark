@@ -32,3 +32,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Dev Logs (local docs, not for repo)
+dev-logs/
