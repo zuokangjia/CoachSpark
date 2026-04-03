@@ -23,7 +23,15 @@ def run_review(data: ReviewRequest, db: Session = Depends(get_db)):
     interview_id = None
     if data.company_id:
         interview_id = save_review_and_update_profile(
-            db, data.company_id, result, data.round
+            db=db,
+            company_id=data.company_id,
+            result=result,
+            round_num=data.round,
+            raw_notes=data.raw_notes,
+            interview_id=data.interview_id,
+            interview_date=data.interview_date,
+            interview_format=data.interview_format,
+            interviewer=data.interviewer,
         )
 
     response_data = {**result}

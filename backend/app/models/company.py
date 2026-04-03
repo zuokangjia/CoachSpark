@@ -116,6 +116,10 @@ class ReviewRequest(BaseModel):
     round: Optional[int] = 1
     jd_key_points: Optional[List[str]] = []
     company_id: Optional[str] = ""
+    interview_id: Optional[str] = ""
+    interview_date: Optional[str] = ""
+    interview_format: Optional[str] = ""
+    interviewer: Optional[str] = ""
 
 
 class ReviewResponse(BaseModel):

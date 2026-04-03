@@ -3,8 +3,19 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Loader2, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import {
+  ArrowLeft,
+  Loader2,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  Plus,
+  Trash2,
+  FileText,
+  ListTodo,
+} from "lucide-react";
 import { reviewApi } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
 
 interface ReviewQuestion {
   question: string;
@@ -22,37 +33,108 @@ interface ReviewResult {
   interviewer_signals?: string[];
 }
 
+interface StructuredEntry {
+  id: string;
+  question: string;
+  answer: string;
+  interviewerReaction: string;
+  selfFeeling: "good" | "ok" | "bad" | "";
+}
+
+const reactionLabels: Record<string, string> = {
+  good: "满意",
+  ok: "一般",
+  bad: "不满意",
+};
+
+const reactionColors: Record<string, string> = {
+  good: "bg-green-100 text-green-700 border-green-200",
+  ok: "bg-yellow-100 text-yellow-700 border-yellow-200",
+  bad: "bg-red-100 text-red-700 border-red-200",
+};
+
 export default function ReviewPage() {
   const params = useParams();
   const id = params.id as string;
+
+  const [mode, setMode] = useState<"free" | "structured">("free");
 
   const [notes, setNotes] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [position, setPosition] = useState("");
   const [round, setRound] = useState(1);
   const [jdKeyPoints, setJdKeyPoints] = useState("");
+  const [interviewDate, setInterviewDate] = useState("");
+  const [interviewFormat, setInterviewFormat] = useState("");
+  const [interviewerName, setInterviewerName] = useState("");
+
+  const [entries, setEntries] = useState<StructuredEntry[]>([
+    { id: crypto.randomUUID(), question: "", answer: "", interviewerReaction: "", selfFeeling: "" },
+  ]);
+
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ReviewResult | null>(null);
 
+  function addEntry() {
+    setEntries([
+      ...entries,
+      { id: crypto.randomUUID(), question: "", answer: "", interviewerReaction: "", selfFeeling: "" },
+    ]);
+  }
+
+  function removeEntry(entryId: string) {
+    if (entries.length <= 1) return;
+    setEntries(entries.filter((e) => e.id !== entryId));
+  }
+
+  function updateEntry(entryId: string, field: keyof StructuredEntry, value: string) {
+    setEntries(
+      entries.map((e) => (e.id === entryId ? { ...e, [field]: value } : e)),
+    );
+  }
+
+  function buildRawNotes(): string {
+    const parts: string[] = [];
+    for (const entry of entries) {
+      if (!entry.question.trim()) continue;
+      parts.push(`[问题] ${entry.question}`);
+      if (entry.answer.trim()) parts.push(`[我的回答] ${entry.answer}`);
+      if (entry.interviewerReaction.trim())
+        parts.push(`[面试官反应] ${entry.interviewerReaction}`);
+      if (entry.selfFeeling)
+        parts.push(`[自我感觉] ${reactionLabels[entry.selfFeeling] || entry.selfFeeling}`);
+      parts.push("");
+    }
+    return parts.join("\n");
+  }
+
   async function handleAnalyze(e: React.FormEvent) {
     e.preventDefault();
-    if (!notes.trim()) {
-      alert("请填写面试笔记");
+
+    const rawNotes = mode === "structured" ? buildRawNotes() : notes;
+    if (!rawNotes.trim()) {
+      alert(mode === "structured" ? "请至少填写一个问题" : "请填写面试笔记");
       return;
     }
 
     setLoading(true);
     try {
       const payload: Record<string, unknown> = {
-        raw_notes: notes.trim(),
+        raw_notes: rawNotes.trim(),
         round,
         company_id: id,
       };
       if (companyName.trim()) payload.company_name = companyName.trim();
       if (position.trim()) payload.position = position.trim();
       if (jdKeyPoints.trim()) {
-        payload.jd_key_points = jdKeyPoints.split(",").map((s) => s.trim()).filter(Boolean);
+        payload.jd_key_points = jdKeyPoints
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
       }
+      if (interviewDate) payload.interview_date = interviewDate;
+      if (interviewFormat) payload.interview_format = interviewFormat;
+      if (interviewerName.trim()) payload.interviewer = interviewerName.trim();
 
       const res = await reviewApi.analyze(payload);
       setResult(res.data);
@@ -85,39 +167,180 @@ export default function ReviewPage() {
         返回公司详情
       </Link>
 
-      <h1 className="mb-6 text-2xl font-bold text-slate-900">面试复盘</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-slate-900">面试复盘</h1>
+        <div className="flex rounded-lg border border-slate-200 bg-white p-0.5">
+          <button
+            onClick={() => setMode("free")}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium",
+              mode === "free"
+                ? "bg-blue-100 text-blue-700"
+                : "text-slate-500 hover:text-slate-700",
+            )}
+          >
+            <FileText className="h-3.5 w-3.5" />
+            自由模式
+          </button>
+          <button
+            onClick={() => setMode("structured")}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium",
+              mode === "structured"
+                ? "bg-blue-100 text-blue-700"
+                : "text-slate-500 hover:text-slate-700",
+            )}
+          >
+            <ListTodo className="h-3.5 w-3.5" />
+            结构化模式
+          </button>
+        </div>
+      </div>
 
       <form onSubmit={handleAnalyze} className="mb-8 rounded-xl border border-slate-200 bg-white p-6">
-        <div className="mb-4">
-          <label className="mb-1 block text-sm font-medium text-slate-700">
-            面试笔记 <span className="text-red-500">*</span>
-          </label>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={8}
-            placeholder="粘贴你的面试原始笔记..."
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
+        {mode === "free" ? (
+          <div className="mb-4">
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              面试笔记 <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={8}
+              placeholder="粘贴你的面试原始笔记..."
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {entries.map((entry, index) => (
+              <div
+                key={entry.id}
+                className="rounded-lg border border-slate-200 bg-slate-50 p-4"
+              >
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-700">
+                    问题 {index + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeEntry(entry.id)}
+                    disabled={entries.length <= 1}
+                    className="rounded-md p-1 text-slate-400 hover:bg-slate-200 hover:text-red-500 disabled:opacity-30"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
 
-        <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-600">
+                      面试官问了什么 <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={entry.question}
+                      onChange={(e) => updateEntry(entry.id, "question", e.target.value)}
+                      placeholder="例如：解释 React diff 算法"
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-600">
+                      你是怎么回答的 <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={entry.answer}
+                      onChange={(e) => updateEntry(entry.id, "answer", e.target.value)}
+                      rows={3}
+                      placeholder="尽可能回忆你的回答要点..."
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-600">
+                        面试官反应
+                      </label>
+                      <input
+                        type="text"
+                        value={entry.interviewerReaction}
+                        onChange={(e) =>
+                          updateEntry(entry.id, "interviewerReaction", e.target.value)
+                        }
+                        placeholder="例如：追问了细节 / 没有追问"
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-600">
+                        自我感觉
+                      </label>
+                      <div className="flex gap-2">
+                        {(["good", "ok", "bad"] as const).map((feeling) => (
+                          <button
+                            key={feeling}
+                            type="button"
+                            onClick={() => updateEntry(entry.id, "selfFeeling", feeling)}
+                            className={cn(
+                              "flex-1 rounded-lg border px-3 py-2 text-xs font-medium",
+                              entry.selfFeeling === feeling
+                                ? reactionColors[feeling]
+                                : "border-slate-200 bg-white text-slate-500",
+                            )}
+                          >
+                            {reactionLabels[feeling]}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={addEntry}
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 py-3 text-sm text-slate-500 hover:border-blue-400 hover:text-blue-600"
+            >
+              <Plus className="h-4 w-4" />
+              添加问题
+            </button>
+          </div>
+        )}
+
+        <div className="mt-4 grid grid-cols-2 gap-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">公司名</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">面试日期</label>
             <input
-              type="text"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              placeholder="可选"
+              type="date"
+              value={interviewDate}
+              onChange={(e) => setInterviewDate(e.target.value)}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">岗位名</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">面试形式</label>
+            <select
+              value={interviewFormat}
+              onChange={(e) => setInterviewFormat(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="">请选择</option>
+              <option value="phone">电话</option>
+              <option value="video">视频</option>
+              <option value="onsite">现场</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">面试官</label>
             <input
               type="text"
-              value={position}
-              onChange={(e) => setPosition(e.target.value)}
+              value={interviewerName}
+              onChange={(e) => setInterviewerName(e.target.value)}
               placeholder="可选"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
@@ -175,7 +398,10 @@ export default function ReviewPage() {
                     <div className="flex items-start justify-between gap-3">
                       <p className="text-sm font-medium text-slate-900">{q.question}</p>
                       <span
-                        className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${getScoreColor(q.score)}`}
+                        className={cn(
+                          "flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                          getScoreColor(q.score),
+                        )}
                       >
                         {getScoreIcon(q.score)}
                         {q.score}/10
