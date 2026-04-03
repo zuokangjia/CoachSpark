@@ -200,7 +200,7 @@ def create_test_data():
             id=generate_uuid(),
             name="ByteDance",
             position="Frontend Architect",
-            status="closed",
+            status="rejected",
             applied_date=today - timedelta(days=30),
             jd_text="Deep understanding of React source code. System design for frontend infrastructure.",
         )
@@ -408,7 +408,7 @@ def create_test_data():
             id=generate_uuid(),
             name="JD.com",
             position="Frontend Engineer",
-            status="closed",
+            status="rejected",
             applied_date=today - timedelta(days=15),
             jd_text="React, Vue, CSS, Webpack, performance optimization.",
         )

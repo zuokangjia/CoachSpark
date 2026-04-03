@@ -29,7 +29,7 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         "total_companies": len(companies),
         "applied": status_counts.get("applied", 0),
         "interviewing": status_counts.get("interviewing", 0),
-        "closed": status_counts.get("closed", 0),
+        "rejected": status_counts.get("rejected", 0),
         "total_interviews": len(interviews),
         "top_weak_points": top_weak,
     }

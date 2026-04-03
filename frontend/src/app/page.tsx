@@ -23,7 +23,7 @@ interface DashboardStats {
   total_companies: number;
   applied: number;
   interviewing: number;
-  closed: number;
+  rejected: number;
   total_interviews: number;
   top_weak_points: [string, number][];
 }
@@ -154,7 +154,7 @@ export default function DashboardPage() {
           <StatCard
             icon={TrendingUp}
             label="已完成"
-            value={stats.closed}
+            value={stats.rejected}
             color="text-success-text"
             bg="bg-success-bg"
           />

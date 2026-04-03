@@ -70,9 +70,9 @@
   --col-interviewing-bg: #fffbeb;
   --col-interviewing-border: #fde68a;
   --col-interviewing-text: #92400e;
-  --col-closed-bg: #f8fafc;
-  --col-closed-border: #e2e8f0;
-  --col-closed-text: #475569;
+  --col-rejected-bg: #f8fafc;
+  --col-rejected-border: #e2e8f0;
+  --col-rejected-text: #475569;
 }
 
 /* ============================================
@@ -133,9 +133,9 @@
   --col-interviewing-bg: #422006;
   --col-interviewing-border: #78350f;
   --col-interviewing-text: #fbbf24;
-  --col-closed-bg: #162032;
-  --col-closed-border: #334155;
-  --col-closed-text: #94a3b8;
+  --col-rejected-bg: #162032;
+  --col-rejected-border: #334155;
+  --col-rejected-text: #94a3b8;
 }
 
 @theme inline {
@@ -180,9 +180,9 @@
   --color-col-interviewing-bg: var(--col-interviewing-bg);
   --color-col-interviewing-border: var(--col-interviewing-border);
   --color-col-interviewing-text: var(--col-interviewing-text);
-  --color-col-closed-bg: var(--col-closed-bg);
-  --color-col-closed-border: var(--col-closed-border);
-  --color-col-closed-text: var(--col-closed-text);
+  --color-col-rejected-bg: var(--col-rejected-bg);
+  --color-col-rejected-border: var(--col-rejected-border);
+  --color-col-rejected-text: var(--col-rejected-text);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

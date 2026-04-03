@@ -39,10 +39,8 @@ def transition_company_status(
             company_id=company_id,
             salary=offer_data.get("salary", "") if offer_data else "",
             benefits=offer_data.get("benefits", "") if offer_data else "",
-            offer_date=date.fromisoformat(offer_data["offer_date"])
-            if offer_data and offer_data.get("offer_date")
-            else date.today(),
-            deadline=date.fromisoformat(offer_data["deadline"])
+            offer_date=offer_data.get("offer_date") or date.today(),
+            deadline=offer_data.get("deadline")
             if offer_data and offer_data.get("deadline")
             else None,
             notes=offer_data.get("notes", "") if offer_data else "",

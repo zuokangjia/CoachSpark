@@ -227,7 +227,7 @@ CoachSpark/
 | name | VARCHAR(255) | 公司名 |
 | position | VARCHAR(255) | 岗位名 |
 | jd_text | TEXT | 岗位描述原文 |
-| status | VARCHAR(50) | 状态: applied / interviewing / closed |
+| status | VARCHAR(50) | 状态: applied / interviewing / passed / rejected |
 | applied_date | DATE | 投递日期 |
 | next_event_date | DATE | 下次事件日期 |
 | next_event_type | VARCHAR(50) | 事件类型: interview / offer / rejection |

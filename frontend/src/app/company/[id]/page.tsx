@@ -19,12 +19,11 @@ import {
   BookOpen,
   Target,
   CheckCircle,
-  ChevronDown,
-  Pencil,
-  Trash2,
+  ArrowRight,
 } from "lucide-react";
 import { companiesApi, interviewsApi } from "@/lib/api-client";
 import { formatDate, cn } from "@/lib/utils";
+import { StatusTransitionModal } from "@/app/components/status-transition-modal";
 
 interface Interview {
   id: string;
@@ -102,8 +101,7 @@ export default function CompanyDetailPage() {
   const [briefData, setBriefData] = useState<any>(null);
   const [showRejection, setShowRejection] = useState(false);
   const [rejectionData, setRejectionData] = useState<any>(null);
-  const [showStatusMenu, setShowStatusMenu] = useState(false);
-  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [showTransition, setShowTransition] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -122,24 +120,6 @@ export default function CompanyDetailPage() {
       alert("加载失败");
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function updateStatus(newStatus: string) {
-    setStatusUpdating(true);
-    try {
-      await companiesApi.update(id, { status: newStatus });
-      setCompany((prev) => (prev ? { ...prev, status: newStatus } : null));
-      setShowStatusMenu(false);
-      if (newStatus === "rejected") {
-        const res = await companiesApi.getRejectionAnalysis(id);
-        setRejectionData(res.data);
-        setShowRejection(true);
-      }
-    } catch {
-      alert("状态更新失败");
-    } finally {
-      setStatusUpdating(false);
     }
   }
 
@@ -172,50 +152,52 @@ export default function CompanyDetailPage() {
             <p className="mt-1 text-text-secondary">{company.position}</p>
           </div>
 
-          <div className="relative">
-            <button
-              onClick={() => setShowStatusMenu(!showStatusMenu)}
-              disabled={statusUpdating}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                statusColors[company.status] || "bg-surface-muted text-text-secondary",
-              )}
-            >
-              {statusLabels[company.status] || company.status}
-              <ChevronDown className="h-3 w-3" />
-            </button>
-
-            {showStatusMenu && (
-              <div className="absolute right-0 z-50 mt-1 w-40 rounded-lg border border-border bg-surface py-1 shadow-lg">
-                {(["applied", "interviewing", "passed", "rejected"] as const).map(
-                  (s) => (
-                    <button
-                      key={s}
-                      onClick={() => updateStatus(s)}
-                      className={cn(
-                        "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-surface-secondary",
-                        company.status === s
-                          ? "font-medium text-text-primary"
-                          : "text-text-secondary",
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "h-2 w-2 rounded-full",
-                          s === "applied"
-                            ? "bg-info"
-                            : s === "interviewing"
-                              ? "bg-warning"
-                              : s === "passed"
-                                ? "bg-success"
-                                : "bg-error",
-                        )}
-                      />
-                      {statusLabels[s]}
-                    </button>
-                  ),
+          <div className="flex items-center gap-3">
+            <span className={cn(
+              "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium",
+              statusColors[company.status] || "bg-surface-muted text-text-secondary",
+            )}>
+              <span
+                className={cn(
+                  "h-2 w-2 rounded-full",
+                  company.status === "applied"
+                    ? "bg-info"
+                    : company.status === "interviewing"
+                      ? "bg-warning"
+                      : company.status === "passed"
+                        ? "bg-success"
+                        : "bg-error",
                 )}
-              </div>
+              />
+              {statusLabels[company.status] || company.status}
+            </span>
+
+            {(company.status === "applied" || company.status === "interviewing") && (
+              <button
+                onClick={() => setShowTransition(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+              >
+                <ArrowRight className="h-3.5 w-3.5" />
+                推进流程
+              </button>
+            )}
+
+            {company.status === "rejected" && (
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await companiesApi.getRejectionAnalysis(id);
+                    setRejectionData(res.data);
+                    setShowRejection(true);
+                  } catch {
+                    alert("加载失败");
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-error/30 bg-error-bg px-3 py-1.5 text-xs font-medium text-error-text hover:bg-error/10"
+              >
+                <AlertTriangle className="h-3.5 w-3.5" />
+                拒绝分析
+              </button>
             )}
           </div>
         </div>
@@ -421,6 +403,25 @@ export default function CompanyDetailPage() {
           onClose={() => {
             setShowRejection(false);
             setRejectionData(null);
+          }}
+        />
+      )}
+
+      {showTransition && company && (
+        <StatusTransitionModal
+          company={company}
+          onClose={() => setShowTransition(false)}
+          onTransitioned={async (newStatus) => {
+            setShowTransition(false);
+            if (newStatus === "rejected") {
+              try {
+                const res = await companiesApi.getRejectionAnalysis(id);
+                setRejectionData(res.data);
+                setShowRejection(true);
+              } catch {
+              }
+            }
+            loadData();
           }}
         />
       )}
