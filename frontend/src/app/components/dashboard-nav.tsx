@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkle, LayoutDashboard, Award, Menu, X } from "lucide-react";
+import { Sparkle, LayoutDashboard, Award, Menu, X, Sun, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useThemeStore } from "@/lib/store/theme-store";
 
 const navItems = [
   { href: "/", label: "投递看板", icon: LayoutDashboard, matchPattern: (path: string) => path === "/" },
@@ -14,6 +15,7 @@ const navItems = [
 export function DashboardNav() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { resolved, toggle } = useThemeStore();
 
   return (
     <nav className="sticky top-0 z-50 border-b border-border/60 bg-surface/80 backdrop-blur-md shadow-sm">
@@ -54,6 +56,20 @@ export function DashboardNav() {
               </Link>
             );
           })}
+
+          <div className="ml-1 h-5 w-px bg-border" />
+
+          <button
+            onClick={toggle}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-text-secondary hover:bg-surface-secondary hover:text-text-primary transition-colors"
+            aria-label={resolved === "dark" ? "切换为浅色模式" : "切换为深色模式"}
+          >
+            {resolved === "dark" ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+          </button>
         </div>
 
         <button
@@ -88,6 +104,23 @@ export function DashboardNav() {
                 </Link>
               );
             })}
+
+            <div className="my-1 h-px bg-border" />
+
+            <button
+              onClick={() => {
+                toggle();
+                setMobileOpen(false);
+              }}
+              className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-text-secondary hover:bg-surface-secondary hover:text-text-primary transition-colors"
+            >
+              {resolved === "dark" ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+              {resolved === "dark" ? "浅色模式" : "深色模式"}
+            </button>
           </div>
         </div>
       )}

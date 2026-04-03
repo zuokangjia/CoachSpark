@@ -15,7 +15,7 @@ export const companiesApi = {
   delete: (id: string) => api.delete(`/companies/${id}`),
   getChain: (id: string) => api.get(`/companies/${id}/interview-chain`),
   getStats: (id: string) => api.get(`/companies/${id}/stats`),
-  getBrief: (id: string, round: number) => api.get(`/companies/${id}/pre-interview-brief?round=${round}`),
+  getBrief: (id: string, round: number) => api.get(`/companies/${id}/pre-interview-brief?round_num=${round}`),
   getRejectionAnalysis: (id: string) => api.post(`/companies/${id}/rejection-analysis`),
 };
 

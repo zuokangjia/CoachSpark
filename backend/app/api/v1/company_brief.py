@@ -9,7 +9,7 @@ router = APIRouter(prefix="/companies", tags=["companies"])
 
 @router.get("/{company_id}/pre-interview-brief")
 def get_pre_interview_brief(
-    company_id: str, round: int = 1, db: Session = Depends(get_db)
+    company_id: str, round_num: int = 1, db: Session = Depends(get_db)
 ):
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
@@ -63,7 +63,7 @@ def get_pre_interview_brief(
     return {
         "company": company.name,
         "position": company.position,
-        "next_round": round,
+        "next_round": round_num,
         "previous_weak_points": top_weak_summary,
         "previous_questions": previous_questions[-5:],
         "next_round_prediction": next_round_predictions[:5],

@@ -11,7 +11,7 @@ export function formatDate(dateStr: string | null): string {
 }
 
 export const COLUMNS = [
-  { id: "applied", title: "已投递", color: "bg-blue-50 border-blue-200" },
-  { id: "interviewing", title: "面试中", color: "bg-amber-50 border-amber-200" },
-  { id: "closed", title: "已结束", color: "bg-gray-50 border-gray-200" },
+  { id: "applied", title: "已投递", color: "bg-col-applied-bg border-col-applied-border" },
+  { id: "interviewing", title: "面试中", color: "bg-col-interviewing-bg border-col-interviewing-border" },
+  { id: "closed", title: "已结束", color: "bg-col-closed-bg border-col-closed-border" },
 ] as const;

@@ -51,7 +51,7 @@ interface TodayBriefing {
 }
 
 export default function DashboardPage() {
-  const { companies, loading, fetchCompanies, moveCompany } = useCompanyStore();
+  const { companies, loading, fetchCompanies, moveCompany, removeCompany } = useCompanyStore();
   const [showModal, setShowModal] = useState(false);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [todayBrief, setTodayBrief] = useState<TodayBriefing | null>(null);
@@ -127,7 +127,7 @@ export default function DashboardPage() {
           className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
         >
           <Plus className="h-4 w-4" />
-          添加公司
+          添加流程
         </button>
       </div>
 
@@ -211,7 +211,18 @@ export default function DashboardPage() {
                 >
                   <div className="flex flex-col gap-2">
                     {colCompanies.map((company) => (
-                      <CompanyCard key={company.id} company={company} />
+                      <CompanyCard
+                        key={company.id}
+                        company={company}
+                        onDeleted={(id) => {
+                          removeCompany(id);
+                          loadStats();
+                        }}
+                        onSaved={() => {
+                          fetchCompanies();
+                          loadStats();
+                        }}
+                      />
                     ))}
                   </div>
                 </SortableContext>

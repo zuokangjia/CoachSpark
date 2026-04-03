@@ -9,6 +9,7 @@ export interface Company {
   next_event_date: string | null;
   next_event_type: string | null;
   notes: string | null;
+  jd_text: string | null;
   created_at: string;
   updated_at: string;
 }

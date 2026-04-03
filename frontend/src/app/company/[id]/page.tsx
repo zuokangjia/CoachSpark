@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Plus,
@@ -20,6 +20,10 @@ import {
   Target,
   CheckCircle,
   ChevronDown,
+  Pencil,
+  Trash2,
+  Eye,
+  XCircle,
 } from "lucide-react";
 import { companiesApi, interviewsApi } from "@/lib/api-client";
 import { formatDate, cn } from "@/lib/utils";
@@ -89,6 +93,7 @@ const formatIcons: Record<string, typeof Phone> = {
 
 export default function CompanyDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const id = params.id as string;
 
   const [company, setCompany] = useState<Company | null>(null);
@@ -101,6 +106,9 @@ export default function CompanyDetailPage() {
   const [rejectionData, setRejectionData] = useState<any>(null);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
+  const [showReviewDetail, setShowReviewDetail] = useState(false);
+  const [reviewDetailData, setReviewDetailData] = useState<any>(null);
+  const [reviewRound, setReviewRound] = useState(1);
 
   useEffect(() => {
     loadData();
@@ -352,13 +360,32 @@ export default function CompanyDetailPage() {
                     </div>
 
                     <div className="flex shrink-0 items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                      <Link
-                        href={`/company/${id}/review?interview_id=${round.id}&round=${round.round}`}
-                        className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
-                      >
-                        <FileText className="h-3.5 w-3.5" />
-                        {hasAnalysis ? "查看复盘" : "写复盘"}
-                      </Link>
+                      {hasAnalysis ? (
+                        <button
+                          onClick={async () => {
+                            try {
+                              const res = await interviewsApi.get(round.id);
+                              setReviewDetailData(res.data);
+                              setReviewRound(round.round);
+                              setShowReviewDetail(true);
+                            } catch {
+                              alert("加载失败");
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          查看复盘
+                        </button>
+                      ) : (
+                        <Link
+                          href={`/company/${id}/review?interview_id=${round.id}&round=${round.round}`}
+                          className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                          写复盘
+                        </Link>
+                      )}
                       <button
                         onClick={async () => {
                           try {
@@ -418,6 +445,23 @@ export default function CompanyDetailPage() {
           onClose={() => {
             setShowRejection(false);
             setRejectionData(null);
+          }}
+        />
+      )}
+
+      {showReviewDetail && reviewDetailData && (
+        <ReviewDetailModal
+          data={reviewDetailData}
+          companyId={id}
+          round={reviewRound}
+          onClose={() => {
+            setShowReviewDetail(false);
+            setReviewDetailData(null);
+          }}
+          onEdit={() => {
+            setShowReviewDetail(false);
+            setReviewDetailData(null);
+            router.push(`/company/${id}/review?interview_id=${reviewDetailData.id}&round=${reviewRound}`);
           }}
         />
       )}
@@ -774,6 +818,169 @@ function RejectionModal({
                   >
                     {sp}
                   </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReviewDetailModal({
+  data,
+  companyId,
+  round,
+  onClose,
+  onEdit,
+}: {
+  data: any;
+  companyId: string;
+  round: number;
+  onClose: () => void;
+  onEdit: () => void;
+}) {
+  const analysis = data.ai_analysis;
+  if (!analysis || typeof analysis !== "object") {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      >
+        <div
+          className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <p className="text-center text-slate-500">暂无复盘数据</p>
+          <div className="mt-4 flex justify-center">
+            <button
+              onClick={onClose}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+            >
+              关闭
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const questions = analysis.questions || [];
+  const weakPoints = analysis.weak_points || [];
+  const strongPoints = analysis.strong_points || [];
+  const predictions = analysis.next_round_prediction || [];
+  const signals = analysis.interviewer_signals || [];
+
+  function getScoreColor(score: number): string {
+    if (score >= 8) return "bg-green-100 text-green-700";
+    if (score >= 5) return "bg-yellow-100 text-yellow-700";
+    return "bg-red-100 text-red-700";
+  }
+
+  function getScoreIcon(score: number) {
+    if (score >= 8) return <CheckCircle className="h-4 w-4 text-green-600" />;
+    if (score >= 5) return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
+    return <XCircle className="h-4 w-4 text-red-600" />;
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-900">
+            第 {round} 轮复盘结果
+          </h2>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onEdit}
+              className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              编辑
+            </button>
+            <button
+              onClick={onClose}
+              className="rounded-md p-1 text-slate-400 hover:bg-slate-100"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          {questions.length > 0 && (
+            <div>
+              <h3 className="mb-3 text-sm font-semibold text-slate-700">问题列表</h3>
+              <div className="space-y-3">
+                {questions.map((q: any, i: number) => (
+                  <div key={i} className="rounded-lg border border-slate-100 bg-slate-50 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-sm font-medium text-slate-900">{q.question}</p>
+                      <span className={cn("flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold", getScoreColor(q.score))}>
+                        {getScoreIcon(q.score)}
+                        {q.score}/10
+                      </span>
+                    </div>
+                    {q.your_answer_summary && (
+                      <p className="mt-2 text-xs text-slate-500">{q.your_answer_summary}</p>
+                    )}
+                    <p className="mt-2 text-sm text-slate-600">{q.assessment}</p>
+                    {q.improvement && (
+                      <p className="mt-1 text-sm text-blue-600">💡 {q.improvement}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            {weakPoints.length > 0 && (
+              <div className="rounded-xl border border-red-200 bg-red-50/50 p-4">
+                <h3 className="mb-2 text-sm font-semibold text-red-800">薄弱点</h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {weakPoints.map((wp: string, i: number) => (
+                    <span key={i} className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs text-red-700">{wp}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {strongPoints.length > 0 && (
+              <div className="rounded-xl border border-green-200 bg-green-50/50 p-4">
+                <h3 className="mb-2 text-sm font-semibold text-green-800">优势</h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {strongPoints.map((sp: string, i: number) => (
+                    <span key={i} className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs text-green-700">{sp}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {predictions.length > 0 && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4">
+              <h3 className="mb-2 text-sm font-semibold text-blue-800">下一轮预测</h3>
+              <div className="flex flex-wrap gap-1.5">
+                {predictions.map((pred: string, i: number) => (
+                  <span key={i} className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs text-blue-700">{pred}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {signals.length > 0 && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+              <h3 className="mb-2 text-sm font-semibold text-amber-800">面试官信号</h3>
+              <div className="flex flex-wrap gap-1.5">
+                {signals.map((signal: string, i: number) => (
+                  <span key={i} className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs text-amber-700">{signal}</span>
                 ))}
               </div>
             </div>
