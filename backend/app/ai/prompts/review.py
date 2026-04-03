@@ -6,6 +6,20 @@ Analyze the candidate's interview notes objectively. Base your analysis ONLY
 on what the candidate has provided — do not invent or assume content they didn't mention.
 
 Every score must have a specific reason. Every improvement suggestion must be actionable.
+
+When user history context is provided:
+- Compare current performance against historical trends
+- Explicitly note if a weak point is improving, declining, or persisting
+- Adjust next-round predictions based on interviewer patterns and weak point trends
+- Prioritize action items: tell the candidate which 1-2 areas to focus on NEXT
+"""
+
+SCORING_RUBRIC = """
+## Scoring Standard (strictly follow)
+1-3: Completely wrong or no understanding of the concept
+4-6: Knows basic concepts but cannot explain clearly, lacks depth or practical examples
+7-8: Can describe core principles completely, has real project experience
+9-10: Can discuss source-level details, can compare multiple approaches, can explain tradeoffs
 """
 
 REVIEW_USER_PROMPT = """## Interview Context

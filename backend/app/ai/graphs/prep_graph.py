@@ -14,6 +14,7 @@ class PrepState(TypedDict):
     weak_points: List[str]
     jd_directions: List[str]
     interview_chain: List[dict]
+    context: str
     daily_tasks: List[dict]
 
 
@@ -30,9 +31,13 @@ def extract_jd_directions(state: PrepState) -> dict:
 
 def allocate_tasks_by_day(state: PrepState) -> dict:
     llm = get_llm()
+    context = state.get("context", "")
+    context_section = f"\n\n## 用户历史上下文\n{context}" if context else ""
+
+    system_prompt = PREP_SYSTEM_PROMPT + context_section
     prompt = ChatPromptTemplate.from_messages(
         [
-            ("system", PREP_SYSTEM_PROMPT),
+            ("system", system_prompt),
             ("human", PREP_USER_PROMPT),
         ]
     )

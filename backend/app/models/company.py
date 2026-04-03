@@ -115,6 +115,7 @@ class ReviewRequest(BaseModel):
     position: Optional[str] = ""
     round: Optional[int] = 1
     jd_key_points: Optional[List[str]] = []
+    company_id: Optional[str] = ""
 
 
 class ReviewResponse(BaseModel):

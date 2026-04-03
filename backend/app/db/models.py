@@ -73,3 +73,18 @@ class PrepPlan(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     company = relationship("Company", back_populates="prep_plans")
+
+
+class UserProfile(Base):
+    __tablename__ = "user_profile"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    skills = Column(JSON, nullable=False, default=list)
+    weak_points = Column(JSON, nullable=False, default=dict)
+    strong_points = Column(JSON, nullable=False, default=list)
+    career_direction = Column(String(255), nullable=False, default="")
+    interview_count = Column(Integer, nullable=False, default=0)
+    offer_count = Column(Integer, nullable=False, default=0)
+    updated_at = Column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )

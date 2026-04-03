@@ -3,7 +3,22 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Plus, FileText, Lightbulb, Loader2, Calendar, Video, Phone, MapPin, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Plus,
+  FileText,
+  Lightbulb,
+  Loader2,
+  Calendar,
+  Video,
+  Phone,
+  MapPin,
+  X,
+  AlertTriangle,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+} from "lucide-react";
 import { companiesApi, interviewsApi } from "@/lib/api-client";
 import { formatDate, cn } from "@/lib/utils";
 
@@ -25,6 +40,29 @@ interface Company {
   next_event_date: string | null;
   next_event_type: string | null;
   notes: string | null;
+}
+
+interface WeakPointTracking {
+  [key: string]: {
+    count: number;
+    first_round: number;
+    last_round: number;
+    is_persistent: boolean;
+  };
+}
+
+interface ChainData {
+  rounds: Array<{
+    id: string;
+    round: number;
+    interview_date: string | null;
+    format: string | null;
+    interviewer: string | null;
+    weak_points: string[];
+    strong_points: string[];
+    questions_count: number;
+  }>;
+  weak_point_tracking: WeakPointTracking;
 }
 
 const statusColors: Record<string, string> = {
@@ -51,6 +89,7 @@ export default function CompanyDetailPage() {
 
   const [company, setCompany] = useState<Company | null>(null);
   const [interviews, setInterviews] = useState<Interview[]>([]);
+  const [chain, setChain] = useState<ChainData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAddInterview, setShowAddInterview] = useState(false);
 
@@ -61,12 +100,18 @@ export default function CompanyDetailPage() {
   async function loadCompany() {
     setLoading(true);
     try {
-      const [companyRes, interviewsRes] = await Promise.all([
+      const [companyRes, interviewsRes, chainRes] = await Promise.all([
         companiesApi.get(id),
         interviewsApi.list(id),
+        companiesApi.getChain(id),
       ]);
       setCompany(companyRes.data);
-      setInterviews(interviewsRes.data.sort((a: Interview, b: Interview) => a.round - b.round));
+      setInterviews(
+        interviewsRes.data.sort(
+          (a: Interview, b: Interview) => a.round - b.round,
+        ),
+      );
+      setChain(chainRes.data);
     } catch {
       alert("加载失败");
     } finally {
@@ -120,7 +165,8 @@ export default function CompanyDetailPage() {
           {company.next_event_date && (
             <span className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
-              下次事件: {company.next_event_type || "—"} · {formatDate(company.next_event_date)}
+              下次事件: {company.next_event_type || "—"} ·{" "}
+              {formatDate(company.next_event_date)}
             </span>
           )}
         </div>
@@ -150,38 +196,105 @@ export default function CompanyDetailPage() {
         </div>
       </div>
 
+      {chain && Object.keys(chain.weak_point_tracking).length > 0 && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50/50 p-5">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-red-800">
+            <AlertTriangle className="h-4 w-4" />
+            薄弱点追踪
+          </h2>
+          <div className="space-y-2">
+            {Object.entries(chain.weak_point_tracking)
+              .sort((a, b) => b[1].count - a[1].count)
+              .map(([wp, data]) => (
+                <div
+                  key={wp}
+                  className="flex items-center justify-between rounded-lg bg-white px-3 py-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-slate-900">{wp}</span>
+                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+                      {data.count} 次
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-slate-500">
+                    <span>
+                      第 {data.first_round} → 第 {data.last_round} 轮
+                    </span>
+                    {data.is_persistent ? (
+                      <TrendingUp className="h-3.5 w-3.5 text-red-500" />
+                    ) : (
+                      <Minus className="h-3.5 w-3.5 text-slate-400" />
+                    )}
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
       <div className="rounded-xl border border-slate-200 bg-white p-6">
-        <h2 className="mb-4 text-lg font-semibold text-slate-900">面试记录</h2>
+        <h2 className="mb-4 text-lg font-semibold text-slate-900">面试链</h2>
         {interviews.length === 0 ? (
           <p className="py-8 text-center text-sm text-slate-400">暂无面试记录</p>
         ) : (
           <div className="space-y-3">
-            {interviews.map((interview) => {
-              const FormatIcon = formatIcons[interview.format || ""] || Calendar;
+            {chain?.rounds.map((round) => {
+              const FormatIcon = formatIcons[round.format || ""] || Calendar;
               return (
                 <div
-                  key={interview.id}
-                  className="flex items-center gap-4 rounded-lg border border-slate-100 bg-slate-50 p-4"
+                  key={round.id}
+                  className="rounded-lg border border-slate-100 bg-slate-50 p-4"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
-                    {interview.round}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-slate-900">
-                        第 {interview.round} 轮
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded bg-white px-2 py-0.5 text-xs text-slate-500">
-                        <FormatIcon className="h-3 w-3" />
-                        {interview.format || "—"}
-                      </span>
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
+                      {round.round}
                     </div>
-                    <div className="mt-1 text-xs text-slate-500">
-                      {interview.interview_date && (
-                        <span>{formatDate(interview.interview_date)}</span>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-slate-900">
+                          第 {round.round} 轮
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded bg-white px-2 py-0.5 text-xs text-slate-500">
+                          <FormatIcon className="h-3 w-3" />
+                          {round.format || "—"}
+                        </span>
+                        {round.questions_count > 0 && (
+                          <span className="text-xs text-slate-400">
+                            {round.questions_count} 个问题
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {round.interview_date && (
+                          <span>{formatDate(round.interview_date)}</span>
+                        )}
+                        {round.interviewer && (
+                          <span className="ml-2">· {round.interviewer}</span>
+                        )}
+                      </div>
+                      {round.weak_points.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {round.weak_points.map((wp) => (
+                            <span
+                              key={wp}
+                              className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] text-red-700"
+                            >
+                              {wp}
+                            </span>
+                          ))}
+                        </div>
                       )}
-                      {interview.interviewer && (
-                        <span className="ml-2">· {interview.interviewer}</span>
+                      {round.strong_points.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {round.strong_points.map((sp) => (
+                            <span
+                              key={sp}
+                              className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] text-green-700"
+                            >
+                              {sp}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -246,13 +359,18 @@ function AddInterviewModal({
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900">添加面试</h2>
-          <button onClick={onClose} className="rounded-md p-1 text-slate-400 hover:bg-slate-100">
+          <button
+            onClick={onClose}
+            className="rounded-md p-1 text-slate-400 hover:bg-slate-100"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">轮次</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              轮次
+            </label>
             <input
               type="number"
               min={1}
@@ -262,7 +380,9 @@ function AddInterviewModal({
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">日期</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              日期
+            </label>
             <input
               type="date"
               value={interviewDate}
@@ -271,7 +391,9 @@ function AddInterviewModal({
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">形式</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              形式
+            </label>
             <select
               value={format}
               onChange={(e) => setFormat(e.target.value)}
@@ -283,7 +405,9 @@ function AddInterviewModal({
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">面试官</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              面试官
+            </label>
             <input
               type="text"
               value={interviewer}

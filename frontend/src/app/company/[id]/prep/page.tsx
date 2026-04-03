@@ -1,16 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Loader2, Check, Circle } from "lucide-react";
-import { prepApi } from "@/lib/api-client";
+import { ArrowLeft, Loader2, Check, Circle, Clock } from "lucide-react";
+import { prepApi, companiesApi, profileApi } from "@/lib/api-client";
 
 interface DailyTask {
   day: number;
   focus: string;
   priority: string;
   tasks: string[];
+  total_minutes?: number;
   completed: boolean;
 }
 
@@ -36,6 +37,47 @@ export default function PrepPage() {
   const [loading, setLoading] = useState(false);
   const [plan, setPlan] = useState<DailyTask[]>([]);
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    loadExistingData();
+  }, [id]);
+
+  async function loadExistingData() {
+    try {
+      const [chainRes, latestPlanRes, profileRes] = await Promise.all([
+        companiesApi.getChain(id),
+        prepApi.getLatest(id),
+        profileApi.get(),
+      ]);
+
+      if (chainRes.data?.weak_point_tracking) {
+        const persistentWp = Object.entries(chainRes.data.weak_point_tracking)
+          .filter(([, d]: [string, any]) => d.is_persistent)
+          .map(([wp]: [string, any]) => wp);
+        if (persistentWp.length > 0) {
+          setWeakPoints(persistentWp.join(", "));
+        }
+      }
+
+      if (profileRes.data?.weak_points) {
+        const decliningOrStable = Object.entries(profileRes.data.weak_points)
+          .filter(([, d]: [string, any]) =>
+            d.trend === "declining" || (d.trend === "stable" && d.avg_score < 6)
+          )
+          .map(([wp]: [string, any]) => wp);
+        if (decliningOrStable.length > 0 && !weakPoints) {
+          setWeakPoints(decliningOrStable.join(", "));
+        }
+      }
+
+      if (latestPlanRes.data?.daily_tasks?.length > 0) {
+        setPlan(latestPlanRes.data.daily_tasks);
+        setCompletedTasks(new Set());
+      }
+    } catch {
+      // data loading failure is non-blocking
+    }
+  }
 
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault();
@@ -183,6 +225,10 @@ export default function PrepPage() {
                 {day.tasks.map((task, i) => {
                   const key = `${day.day}-${i}`;
                   const isCompleted = completedTasks.has(key);
+                  const timeMatch = task.match(/\((\d+)\s*min\)/);
+                  const displayTask = timeMatch ? task.replace(/\s*\(\d+\s*min\)/, "") : task;
+                  const minutes = timeMatch ? parseInt(timeMatch[1], 10) : null;
+
                   return (
                     <li
                       key={i}
@@ -200,11 +246,23 @@ export default function PrepPage() {
                           <Circle className="h-4 w-4 text-slate-300" />
                         )}
                       </button>
-                      <span>{task}</span>
+                      <span className="flex-1">{displayTask}</span>
+                      {minutes && (
+                        <span className="flex shrink-0 items-center gap-0.5 text-xs text-slate-400">
+                          <Clock className="h-3 w-3" />
+                          {minutes}m
+                        </span>
+                      )}
                     </li>
                   );
                 })}
               </ul>
+              {day.total_minutes && (
+                <div className="mt-3 flex items-center justify-end gap-1 text-xs text-slate-400">
+                  <Clock className="h-3 w-3" />
+                  总计约 {day.total_minutes} 分钟
+                </div>
+              )}
             </div>
           ))}
         </div>

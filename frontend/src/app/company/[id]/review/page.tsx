@@ -46,6 +46,7 @@ export default function ReviewPage() {
       const payload: Record<string, unknown> = {
         raw_notes: notes.trim(),
         round,
+        company_id: id,
       };
       if (companyName.trim()) payload.company_name = companyName.trim();
       if (position.trim()) payload.position = position.trim();

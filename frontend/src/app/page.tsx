@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import {
   DndContext,
   DragEndEvent,
@@ -13,20 +12,40 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, Building2, Calendar, TrendingUp, AlertTriangle } from "lucide-react";
 import { useCompanyStore } from "@/lib/store/company-store";
 import { COLUMNS, cn } from "@/lib/utils";
-import { companiesApi } from "@/lib/api-client";
+import { companiesApi, dashboardApi } from "@/lib/api-client";
 import { CompanyCard } from "./components/company-card";
 import { AddCompanyModal } from "./components/add-company-modal";
+
+interface DashboardStats {
+  total_companies: number;
+  applied: number;
+  interviewing: number;
+  closed: number;
+  total_interviews: number;
+  top_weak_points: [string, number][];
+}
 
 export default function DashboardPage() {
   const { companies, loading, fetchCompanies, moveCompany } = useCompanyStore();
   const [showModal, setShowModal] = useState(false);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
 
   useEffect(() => {
     fetchCompanies();
+    loadStats();
   }, []);
+
+  async function loadStats() {
+    try {
+      const res = await dashboardApi.stats();
+      setStats(res.data);
+    } catch {
+      // stats load failure is non-blocking
+    }
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -46,8 +65,9 @@ export default function DashboardPage() {
 
     try {
       await companiesApi.update(companyId, { status: newStatus });
+      loadStats();
     } catch {
-      alert("Failed to update status");
+      alert("更新状态失败");
       fetchCompanies();
     }
   }
@@ -74,9 +94,59 @@ export default function DashboardPage() {
           className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
         >
           <Plus className="h-4 w-4" />
-          Add Company
+          添加公司
         </button>
       </div>
+
+      {stats && (
+        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+          <StatCard
+            icon={Building2}
+            label="总投递"
+            value={stats.total_companies}
+            color="text-blue-600"
+            bg="bg-blue-50"
+          />
+          <StatCard
+            icon={Calendar}
+            label="面试中"
+            value={stats.interviewing}
+            color="text-amber-600"
+            bg="bg-amber-50"
+          />
+          <StatCard
+            icon={TrendingUp}
+            label="已完成"
+            value={stats.closed}
+            color="text-green-600"
+            bg="bg-green-50"
+          />
+          <StatCard
+            icon={AlertTriangle}
+            label="面试总数"
+            value={stats.total_interviews}
+            color="text-purple-600"
+            bg="bg-purple-50"
+          />
+        </div>
+      )}
+
+      {stats && stats.top_weak_points.length > 0 && (
+        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
+          <h3 className="mb-2 text-sm font-semibold text-slate-700">薄弱点 TOP 5</h3>
+          <div className="flex flex-wrap gap-1.5">
+            {stats.top_weak_points.map(([wp, count]) => (
+              <span
+                key={wp}
+                className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs text-red-700"
+              >
+                {wp}
+                <span className="font-semibold">{count}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -119,7 +189,33 @@ export default function DashboardPage() {
         </div>
       </DndContext>
 
-      {showModal && <AddCompanyModal onClose={() => setShowModal(false)} />}
+      {showModal && <AddCompanyModal onClose={() => setShowModal(false)} onAdded={() => { fetchCompanies(); loadStats(); }} />}
+    </div>
+  );
+}
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  color,
+  bg,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: number;
+  color: string;
+  bg: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4">
+      <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg", bg)}>
+        <Icon className={cn("h-5 w-5", color)} />
+      </div>
+      <div>
+        <p className="text-xs text-slate-500">{label}</p>
+        <p className="text-lg font-semibold text-slate-900">{value}</p>
+      </div>
     </div>
   );
 }

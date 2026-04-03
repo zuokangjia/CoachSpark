@@ -7,9 +7,10 @@ import { useCompanyStore } from "@/lib/store/company-store";
 
 interface AddCompanyModalProps {
   onClose: () => void;
+  onAdded?: () => void;
 }
 
-export function AddCompanyModal({ onClose }: AddCompanyModalProps) {
+export function AddCompanyModal({ onClose, onAdded }: AddCompanyModalProps) {
   const [name, setName] = useState("");
   const [position, setPosition] = useState("");
   const [jdText, setJdText] = useState("");
@@ -37,6 +38,7 @@ export function AddCompanyModal({ onClose }: AddCompanyModalProps) {
 
       const res = await companiesApi.create(payload);
       addCompany(res.data);
+      onAdded?.();
       onClose();
     } catch (err) {
       alert("创建失败，请重试");

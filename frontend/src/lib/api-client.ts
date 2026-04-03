@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 export const api = axios.create({
   baseURL: `${API_URL}/api/v1`,
@@ -13,6 +13,8 @@ export const companiesApi = {
   create: (data: any) => api.post("/companies/", data),
   update: (id: string, data: any) => api.put(`/companies/${id}`, data),
   delete: (id: string) => api.delete(`/companies/${id}`),
+  getChain: (id: string) => api.get(`/companies/${id}/interview-chain`),
+  getStats: (id: string) => api.get(`/companies/${id}/stats`),
 };
 
 export const interviewsApi = {
@@ -31,4 +33,15 @@ export const reviewApi = {
 
 export const prepApi = {
   generate: (data: any) => api.post("/prep/generate", data),
+  getLatest: (companyId: string) => api.get(`/prep/latest/${companyId}`),
+};
+
+export const profileApi = {
+  get: () => api.get("/profile/"),
+  rebuild: () => api.post("/profile/rebuild"),
+  summary: () => api.get("/profile/summary"),
+};
+
+export const dashboardApi = {
+  stats: () => api.get("/dashboard/stats"),
 };
