@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2, Check, Circle, Clock } from "lucide-react";
 import { prepApi, companiesApi, profileApi } from "@/lib/api-client";
 
@@ -29,6 +29,7 @@ const priorityLabels: Record<string, string> = {
 
 export default function PrepPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params.id as string;
 
   const [daysAvailable, setDaysAvailable] = useState(7);
@@ -39,8 +40,10 @@ export default function PrepPage() {
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    const r = searchParams.get("round");
+    void r;
     loadExistingData();
-  }, [id]);
+  }, [id, searchParams]);
 
   async function loadExistingData() {
     try {

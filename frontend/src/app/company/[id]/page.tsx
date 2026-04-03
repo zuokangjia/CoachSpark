@@ -6,7 +6,6 @@ import { useParams } from "next/navigation";
 import {
   ArrowLeft,
   Plus,
-  FileText,
   Lightbulb,
   Loader2,
   Calendar,
@@ -15,9 +14,8 @@ import {
   MapPin,
   X,
   AlertTriangle,
-  TrendingUp,
-  TrendingDown,
-  Minus,
+  FileText,
+  ChevronRight,
 } from "lucide-react";
 import { companiesApi, interviewsApi } from "@/lib/api-client";
 import { formatDate, cn } from "@/lib/utils";
@@ -171,7 +169,7 @@ export default function CompanyDetailPage() {
           )}
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4">
           <button
             onClick={() => setShowAddInterview(true)}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
@@ -179,20 +177,6 @@ export default function CompanyDetailPage() {
             <Plus className="h-4 w-4" />
             添加面试
           </button>
-          <Link
-            href={`/company/${id}/review`}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            <FileText className="h-4 w-4" />
-            面试复盘
-          </Link>
-          <Link
-            href={`/company/${id}/prep`}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-600"
-          >
-            <Lightbulb className="h-4 w-4" />
-            生成备战计划
-          </Link>
         </div>
       </div>
 
@@ -220,11 +204,7 @@ export default function CompanyDetailPage() {
                     <span>
                       第 {data.first_round} → 第 {data.last_round} 轮
                     </span>
-                    {data.is_persistent ? (
-                      <TrendingUp className="h-3.5 w-3.5 text-red-500" />
-                    ) : (
-                      <Minus className="h-3.5 w-3.5 text-slate-400" />
-                    )}
+                    <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
                   </div>
                 </div>
               ))}
@@ -235,15 +215,18 @@ export default function CompanyDetailPage() {
       <div className="rounded-xl border border-slate-200 bg-white p-6">
         <h2 className="mb-4 text-lg font-semibold text-slate-900">面试链</h2>
         {interviews.length === 0 ? (
-          <p className="py-8 text-center text-sm text-slate-400">暂无面试记录</p>
+          <p className="py-8 text-center text-sm text-slate-400">
+            暂无面试记录，点击上方&quot;添加面试&quot;开始记录
+          </p>
         ) : (
           <div className="space-y-3">
             {chain?.rounds.map((round) => {
               const FormatIcon = formatIcons[round.format || ""] || Calendar;
+              const hasAnalysis = round.questions_count > 0;
               return (
                 <div
                   key={round.id}
-                  className="rounded-lg border border-slate-100 bg-slate-50 p-4"
+                  className="group relative rounded-lg border border-slate-100 bg-slate-50 p-4 transition-colors hover:border-slate-200 hover:bg-white"
                 >
                   <div className="flex items-center gap-4">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
@@ -258,9 +241,9 @@ export default function CompanyDetailPage() {
                           <FormatIcon className="h-3 w-3" />
                           {round.format || "—"}
                         </span>
-                        {round.questions_count > 0 && (
-                          <span className="text-xs text-slate-400">
-                            {round.questions_count} 个问题
+                        {hasAnalysis && (
+                          <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] text-green-700">
+                            已复盘
                           </span>
                         )}
                       </div>
@@ -297,6 +280,23 @@ export default function CompanyDetailPage() {
                         </div>
                       )}
                     </div>
+
+                    <div className="flex shrink-0 items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                      <Link
+                        href={`/company/${id}/review?interview_id=${round.id}&round=${round.round}`}
+                        className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        {hasAnalysis ? "查看复盘" : "写复盘"}
+                      </Link>
+                      <Link
+                        href={`/company/${id}/prep?round=${round.round + 1}`}
+                        className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100"
+                      >
+                        <Lightbulb className="h-3.5 w-3.5" />
+                        备战下一轮
+                      </Link>
+                    </div>
                   </div>
                 </div>
               );
@@ -329,6 +329,7 @@ function AddInterviewModal({
   const [interviewDate, setInterviewDate] = useState("");
   const [format, setFormat] = useState("video");
   const [interviewer, setInterviewer] = useState("");
+  const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -338,6 +339,7 @@ function AddInterviewModal({
       const payload: Record<string, unknown> = { round, format };
       if (interviewDate) payload.interview_date = interviewDate;
       if (interviewer.trim()) payload.interviewer = interviewer.trim();
+      if (notes.trim()) payload.raw_notes = notes.trim();
       await interviewsApi.create(companyId, payload);
       onAdded();
       onClose();
@@ -367,55 +369,74 @@ function AddInterviewModal({
           </button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                轮次 <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                min={1}
+                value={round}
+                onChange={(e) => setRound(Number(e.target.value))}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                形式
+              </label>
+              <select
+                value={format}
+                onChange={(e) => setFormat(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="phone">电话</option>
+                <option value="video">视频</option>
+                <option value="onsite">现场</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                日期
+              </label>
+              <input
+                type="date"
+                value={interviewDate}
+                onChange={(e) => setInterviewDate(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                面试官
+              </label>
+              <input
+                type="text"
+                value={interviewer}
+                onChange={(e) => setInterviewer(e.target.value)}
+                placeholder="可选"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
-              轮次
+              面试笔记
             </label>
-            <input
-              type="number"
-              min={1}
-              value={round}
-              onChange={(e) => setRound(Number(e.target.value))}
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+              placeholder="可选，也可以留到复盘时再填写..."
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              日期
-            </label>
-            <input
-              type="date"
-              value={interviewDate}
-              onChange={(e) => setInterviewDate(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              形式
-            </label>
-            <select
-              value={format}
-              onChange={(e) => setFormat(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="phone">电话</option>
-              <option value="video">视频</option>
-              <option value="onsite">现场</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              面试官
-            </label>
-            <input
-              type="text"
-              value={interviewer}
-              onChange={(e) => setInterviewer(e.target.value)}
-              placeholder="可选"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
+
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"

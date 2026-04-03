@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Loader2,
@@ -55,6 +55,7 @@ const reactionColors: Record<string, string> = {
 
 export default function ReviewPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params.id as string;
 
   const [mode, setMode] = useState<"free" | "structured">("free");
@@ -67,6 +68,7 @@ export default function ReviewPage() {
   const [interviewDate, setInterviewDate] = useState("");
   const [interviewFormat, setInterviewFormat] = useState("");
   const [interviewerName, setInterviewerName] = useState("");
+  const [existingInterviewId, setExistingInterviewId] = useState("");
 
   const [entries, setEntries] = useState<StructuredEntry[]>([
     { id: crypto.randomUUID(), question: "", answer: "", interviewerReaction: "", selfFeeling: "" },
@@ -74,6 +76,13 @@ export default function ReviewPage() {
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ReviewResult | null>(null);
+
+  useEffect(() => {
+    const iid = searchParams.get("interview_id");
+    const r = searchParams.get("round");
+    if (iid) setExistingInterviewId(iid);
+    if (r) setRound(Number(r));
+  }, [searchParams]);
 
   function addEntry() {
     setEntries([
@@ -135,6 +144,7 @@ export default function ReviewPage() {
       if (interviewDate) payload.interview_date = interviewDate;
       if (interviewFormat) payload.interview_format = interviewFormat;
       if (interviewerName.trim()) payload.interviewer = interviewerName.trim();
+      if (existingInterviewId) payload.interview_id = existingInterviewId;
 
       const res = await reviewApi.analyze(payload);
       setResult(res.data);
