@@ -12,7 +12,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Plus, Loader2, Building2, Calendar, TrendingUp, AlertTriangle } from "lucide-react";
+import { Plus, Loader2, Building2, Calendar, TrendingUp, AlertTriangle, Clock, FileText, AlertCircle } from "lucide-react";
 import { useCompanyStore } from "@/lib/store/company-store";
 import { COLUMNS, cn } from "@/lib/utils";
 import { companiesApi, dashboardApi } from "@/lib/api-client";
@@ -28,14 +28,38 @@ interface DashboardStats {
   top_weak_points: [string, number][];
 }
 
+interface TodayBriefing {
+  upcoming_interviews: Array<{
+    company: string;
+    position: string;
+    round: number;
+    date: string;
+    days_until: number;
+  }>;
+  pending_results: Array<{
+    company: string;
+    round: number;
+    expected_date: string;
+    days_overdue: number;
+  }>;
+  unreviewed: Array<{
+    company: string;
+    round: number;
+    interview_date: string;
+    days_since: number;
+  }>;
+}
+
 export default function DashboardPage() {
   const { companies, loading, fetchCompanies, moveCompany } = useCompanyStore();
   const [showModal, setShowModal] = useState(false);
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [todayBrief, setTodayBrief] = useState<TodayBriefing | null>(null);
 
   useEffect(() => {
     fetchCompanies();
     loadStats();
+    loadTodayBrief();
   }, []);
 
   async function loadStats() {
@@ -44,6 +68,15 @@ export default function DashboardPage() {
       setStats(res.data);
     } catch {
       // stats load failure is non-blocking
+    }
+  }
+
+  async function loadTodayBrief() {
+    try {
+      const res = await dashboardApi.today();
+      setTodayBrief(res.data);
+    } catch {
+      // non-blocking
     }
   }
 
@@ -97,6 +130,10 @@ export default function DashboardPage() {
           添加公司
         </button>
       </div>
+
+      {todayBrief && (
+        <TodayBriefingCard briefing={todayBrief} />
+      )}
 
       {stats && (
         <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -190,6 +227,74 @@ export default function DashboardPage() {
       </DndContext>
 
       {showModal && <AddCompanyModal onClose={() => setShowModal(false)} onAdded={() => { fetchCompanies(); loadStats(); }} />}
+    </div>
+  );
+}
+
+function TodayBriefingCard({ briefing }: { briefing: TodayBriefing }) {
+  const hasItems =
+    briefing.upcoming_interviews.length > 0 ||
+    briefing.pending_results.length > 0 ||
+    briefing.unreviewed.length > 0;
+
+  if (!hasItems) return null;
+
+  return (
+    <div className="mb-6 rounded-xl border border-slate-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-5">
+      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
+        <Clock className="h-4 w-4 text-blue-600" />
+        今日提醒
+      </h2>
+      <div className="space-y-2">
+        {briefing.upcoming_interviews.map((iv, i) => (
+          <div
+            key={`up-${i}`}
+            className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm"
+          >
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-xs font-medium",
+                iv.days_until === 0
+                  ? "bg-red-100 text-red-700"
+                  : iv.days_until <= 2
+                    ? "bg-amber-100 text-amber-700"
+                    : "bg-blue-100 text-blue-700",
+              )}
+            >
+              {iv.days_until === 0
+                ? "今天"
+                : iv.days_until === 1
+                  ? "明天"
+                  : `${iv.days_until} 天后`}
+            </span>
+            <span className="text-slate-700">
+              {iv.company} · {iv.position} · 第 {iv.round} 轮
+            </span>
+          </div>
+        ))}
+        {briefing.pending_results.map((pr, i) => (
+          <div
+            key={`pr-${i}`}
+            className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm"
+          >
+            <AlertCircle className="h-4 w-4 shrink-0 text-amber-500" />
+            <span className="text-slate-700">
+              {pr.company} 第 {pr.round} 轮结果已逾期 {pr.days_overdue} 天
+            </span>
+          </div>
+        ))}
+        {briefing.unreviewed.map((ur, i) => (
+          <div
+            key={`ur-${i}`}
+            className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm"
+          >
+            <FileText className="h-4 w-4 shrink-0 text-slate-400" />
+            <span className="text-slate-500">
+              {ur.company} 第 {ur.round} 轮面试已过 {ur.days_since} 天未复盘
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

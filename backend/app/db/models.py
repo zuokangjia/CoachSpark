@@ -56,6 +56,8 @@ class Interview(Base):
     interviewer = Column(String(255), nullable=True)
     raw_notes = Column(Text, nullable=True, default="")
     ai_analysis = Column(JSON, nullable=False, default=dict)
+    expected_result_date = Column(Date, nullable=True)
+    result_status = Column(String(50), nullable=False, default="pending")
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     company = relationship("Company", back_populates="interviews")

@@ -13,6 +13,7 @@ from app.models.company import (
 )
 from app.services.company_service import CompanyService
 from app.services.profile_service import get_profile_summary
+from app.services.insight_service import analyze_rejection
 
 router = APIRouter(prefix="/companies", tags=["companies"])
 
@@ -140,3 +141,8 @@ def get_company_stats(company_id: str, db: Session = Depends(get_db)):
             all_strong.items(), key=lambda x: x[1], reverse=True
         )[:5],
     }
+
+
+@router.post("/{company_id}/rejection-analysis")
+def get_rejection_analysis(company_id: str, db: Session = Depends(get_db)):
+    return analyze_rejection(db, company_id)

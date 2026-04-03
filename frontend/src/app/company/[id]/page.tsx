@@ -16,6 +16,12 @@ import {
   AlertTriangle,
   FileText,
   ChevronRight,
+  BookOpen,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Target,
+  CheckCircle,
 } from "lucide-react";
 import { companiesApi, interviewsApi } from "@/lib/api-client";
 import { formatDate, cn } from "@/lib/utils";
@@ -90,6 +96,10 @@ export default function CompanyDetailPage() {
   const [chain, setChain] = useState<ChainData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAddInterview, setShowAddInterview] = useState(false);
+  const [showBrief, setShowBrief] = useState(false);
+  const [briefData, setBriefData] = useState<any>(null);
+  const [showRejection, setShowRejection] = useState(false);
+  const [rejectionData, setRejectionData] = useState<any>(null);
 
   useEffect(() => {
     loadCompany();
@@ -169,7 +179,7 @@ export default function CompanyDetailPage() {
           )}
         </div>
 
-        <div className="mt-4">
+        <div className="mt-4 flex flex-wrap gap-2">
           <button
             onClick={() => setShowAddInterview(true)}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
@@ -177,6 +187,23 @@ export default function CompanyDetailPage() {
             <Plus className="h-4 w-4" />
             添加面试
           </button>
+          {company.status === "closed" && (
+            <button
+              onClick={async () => {
+                try {
+                  const res = await companiesApi.getRejectionAnalysis(id);
+                  setRejectionData(res.data);
+                  setShowRejection(true);
+                } catch {
+                  alert("分析失败");
+                }
+              }}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50"
+            >
+              <AlertTriangle className="h-4 w-4" />
+              拒绝分析
+            </button>
+          )}
         </div>
       </div>
 
@@ -289,6 +316,21 @@ export default function CompanyDetailPage() {
                         <FileText className="h-3.5 w-3.5" />
                         {hasAnalysis ? "查看复盘" : "写复盘"}
                       </Link>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await companiesApi.getBrief(id, round.round);
+                            setBriefData(res.data);
+                            setShowBrief(true);
+                          } catch {
+                            alert("加载失败");
+                          }
+                        }}
+                        className="inline-flex items-center gap-1 rounded-md bg-green-50 px-2.5 py-1.5 text-xs font-medium text-green-700 hover:bg-green-100"
+                      >
+                        <BookOpen className="h-3.5 w-3.5" />
+                        面试前速览
+                      </button>
                       <Link
                         href={`/company/${id}/prep?round=${round.round + 1}`}
                         className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100"
@@ -312,6 +354,21 @@ export default function CompanyDetailPage() {
           onAdded={loadCompany}
         />
       )}
+
+      {showBrief && briefData && (
+        <BriefModal
+          data={briefData}
+          companyId={id}
+          onClose={() => { setShowBrief(false); setBriefData(null); }}
+        />
+      )}
+
+      {showRejection && rejectionData && (
+        <RejectionModal
+          data={rejectionData}
+          onClose={() => { setShowRejection(false); setRejectionData(null); }}
+        />
+      )}
     </div>
   );
 }
@@ -330,6 +387,7 @@ function AddInterviewModal({
   const [format, setFormat] = useState("video");
   const [interviewer, setInterviewer] = useState("");
   const [notes, setNotes] = useState("");
+  const [expectedResultDate, setExpectedResultDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -340,6 +398,7 @@ function AddInterviewModal({
       if (interviewDate) payload.interview_date = interviewDate;
       if (interviewer.trim()) payload.interviewer = interviewer.trim();
       if (notes.trim()) payload.raw_notes = notes.trim();
+      if (expectedResultDate) payload.expected_result_date = expectedResultDate;
       await interviewsApi.create(companyId, payload);
       onAdded();
       onClose();
@@ -437,6 +496,18 @@ function AddInterviewModal({
             />
           </div>
 
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              预计出结果日期
+            </label>
+            <input
+              type="date"
+              value={expectedResultDate}
+              onChange={(e) => setExpectedResultDate(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
@@ -455,6 +526,190 @@ function AddInterviewModal({
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function BriefModal({
+  data,
+  companyId,
+  onClose,
+}: {
+  data: any;
+  companyId: string;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-6 shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-900">
+            面试前速览 · 第 {data.next_round} 轮
+          </h2>
+          <button
+            onClick={onClose}
+            className="rounded-md p-1 text-slate-400 hover:bg-slate-100"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-800">
+            <p className="font-semibold">{data.quick_review}</p>
+          </div>
+
+          {data.previous_weak_points.length > 0 && (
+            <div>
+              <h3 className="mb-2 text-sm font-semibold text-slate-700">薄弱点回顾</h3>
+              <div className="space-y-1.5">
+                {data.previous_weak_points.map((wp: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2 text-sm">
+                    <span className="text-slate-700">{wp.point}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500">出现 {wp.count} 次</span>
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-xs font-medium",
+                          wp.avg_score >= 7
+                            ? "bg-green-100 text-green-700"
+                            : wp.avg_score >= 5
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-red-100 text-red-700",
+                        )}
+                      >
+                        {wp.avg_score}/10
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {data.next_round_prediction.length > 0 && (
+            <div>
+              <h3 className="mb-2 text-sm font-semibold text-slate-700">下一轮预测</h3>
+              <div className="flex flex-wrap gap-1.5">
+                {data.next_round_prediction.map((pred: string, i: number) => (
+                  <span
+                    key={i}
+                    className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs text-blue-700"
+                  >
+                    {pred}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Link
+              href={`/company/${companyId}/prep?round=${data.next_round}`}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600"
+            >
+              <Lightbulb className="h-4 w-4" />
+              生成备战计划
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RejectionModal({
+  data,
+  onClose,
+}: {
+  data: any;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-900">拒绝分析</h2>
+          <button
+            onClick={onClose}
+            className="rounded-md p-1 text-slate-400 hover:bg-slate-100"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {data.encouragement && (
+            <p className="text-sm text-slate-600 italic">{data.encouragement}</p>
+          )}
+
+          {data.likely_reasons.length > 0 && (
+            <div>
+              <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-red-700">
+                <AlertTriangle className="h-4 w-4" />
+                可能原因
+              </h3>
+              <div className="space-y-1.5">
+                {data.likely_reasons.map((reason: string, i: number) => (
+                  <div key={i} className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {reason}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {data.next_focus.length > 0 && (
+            <div>
+              <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+                <Target className="h-4 w-4" />
+                下一步重点
+              </h3>
+              <div className="flex flex-wrap gap-1.5">
+                {data.next_focus.map((wp: string, i: number) => (
+                  <span
+                    key={i}
+                    className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs text-amber-700"
+                  >
+                    {wp}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {data.strengths_to_keep.length > 0 && (
+            <div>
+              <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-green-700">
+                <CheckCircle className="h-4 w-4" />
+                保持优势
+              </h3>
+              <div className="flex flex-wrap gap-1.5">
+                {data.strengths_to_keep.map((sp: string, i: number) => (
+                  <span
+                    key={i}
+                    className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs text-green-700"
+                  >
+                    {sp}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

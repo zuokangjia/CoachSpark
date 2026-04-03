@@ -15,6 +15,8 @@ export const companiesApi = {
   delete: (id: string) => api.delete(`/companies/${id}`),
   getChain: (id: string) => api.get(`/companies/${id}/interview-chain`),
   getStats: (id: string) => api.get(`/companies/${id}/stats`),
+  getBrief: (id: string, round: number) => api.get(`/companies/${id}/pre-interview-brief?round=${round}`),
+  getRejectionAnalysis: (id: string) => api.post(`/companies/${id}/rejection-analysis`),
 };
 
 export const interviewsApi = {
@@ -44,4 +46,5 @@ export const profileApi = {
 
 export const dashboardApi = {
   stats: () => api.get("/dashboard/stats"),
+  today: () => api.get("/dashboard/today"),
 };

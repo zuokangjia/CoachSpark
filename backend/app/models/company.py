@@ -63,6 +63,7 @@ class InterviewCreate(BaseModel):
     format: Optional[str] = None
     interviewer: Optional[str] = None
     raw_notes: Optional[str] = ""
+    expected_result_date: Optional[date] = None
 
 
 class InterviewUpdate(BaseModel):
@@ -72,6 +73,8 @@ class InterviewUpdate(BaseModel):
     interviewer: Optional[str] = None
     raw_notes: Optional[str] = None
     ai_analysis: Optional[dict] = None
+    expected_result_date: Optional[date] = None
+    result_status: Optional[str] = None
 
 
 class InterviewResponse(BaseModel):
@@ -83,6 +86,8 @@ class InterviewResponse(BaseModel):
     interviewer: Optional[str]
     raw_notes: Optional[str]
     ai_analysis: dict
+    expected_result_date: Optional[date]
+    result_status: str
     created_at: datetime
 
     class Config:
