@@ -154,3 +154,83 @@ class PrepRequest(BaseModel):
 
 class PrepResponse(BaseModel):
     daily_tasks: List[DailyTask]
+
+
+class OfferCreate(BaseModel):
+    company_id: str
+    salary: Optional[str] = ""
+    benefits: Optional[str] = ""
+    offer_date: Optional[date] = None
+    deadline: Optional[date] = None
+    notes: Optional[str] = ""
+
+
+class OfferUpdate(BaseModel):
+    salary: Optional[str] = None
+    benefits: Optional[str] = None
+    offer_date: Optional[date] = None
+    deadline: Optional[date] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class OfferResponse(BaseModel):
+    id: str
+    company_id: str
+    company_name: str
+    position: str
+    salary: Optional[str]
+    benefits: Optional[str]
+    offer_date: Optional[date]
+    deadline: Optional[date]
+    status: str
+    notes: Optional[str]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class StatusTransitionRequest(BaseModel):
+    new_status: str
+    offer_data: Optional[OfferCreate] = None
+
+
+class OfferCreate(BaseModel):
+    company_id: str
+    salary: Optional[str] = ""
+    benefits: Optional[str] = ""
+    offer_date: Optional[date] = None
+    deadline: Optional[date] = None
+    notes: Optional[str] = ""
+
+
+class OfferUpdate(BaseModel):
+    salary: Optional[str] = None
+    benefits: Optional[str] = None
+    offer_date: Optional[date] = None
+    deadline: Optional[date] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class OfferResponse(BaseModel):
+    id: str
+    company_id: str
+    company_name: str
+    position: str
+    salary: Optional[str]
+    benefits: Optional[str]
+    offer_date: Optional[date]
+    deadline: Optional[date]
+    status: str
+    notes: Optional[str]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class StatusTransitionRequest(BaseModel):
+    new_status: str
+    offer_data: Optional[OfferCreate] = None

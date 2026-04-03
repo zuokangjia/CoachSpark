@@ -31,9 +31,9 @@ def create_interview(
 
 
 @router.get("/{interview_id}", response_model=InterviewResponse)
-def get_interview(interview_id: str, db: Session = Depends(get_db)):
+def get_interview(company_id: str, interview_id: str, db: Session = Depends(get_db)):
     service = InterviewService(db)
     interview = service.get_by_id(interview_id)
-    if not interview:
+    if not interview or interview.company_id != company_id:
         raise HTTPException(status_code=404, detail="Interview not found")
     return interview

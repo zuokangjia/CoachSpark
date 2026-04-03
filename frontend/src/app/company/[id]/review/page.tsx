@@ -13,8 +13,16 @@ import {
   Trash2,
   FileText,
   ListTodo,
+  Pencil,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Target,
+  Lightbulb,
+  MessageSquare,
+  BookOpen,
 } from "lucide-react";
-import { reviewApi, interviewsApi } from "@/lib/api-client";
+import { reviewApi, interviewsApi, companiesApi } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 interface ReviewQuestion {
@@ -23,14 +31,6 @@ interface ReviewQuestion {
   score: number;
   assessment: string;
   improvement: string;
-}
-
-interface ReviewResult {
-  questions?: ReviewQuestion[];
-  weak_points?: string[];
-  strong_points?: string[];
-  next_round_prediction?: string[];
-  interviewer_signals?: string[];
 }
 
 interface StructuredEntry {
@@ -48,9 +48,9 @@ const reactionLabels: Record<string, string> = {
 };
 
 const reactionColors: Record<string, string> = {
-  good: "bg-green-100 text-green-700 border-green-200",
-  ok: "bg-yellow-100 text-yellow-700 border-yellow-200",
-  bad: "bg-red-100 text-red-700 border-red-200",
+  good: "bg-success-bg text-success-text border-success",
+  ok: "bg-warning-bg text-warning-text border-warning",
+  bad: "bg-error-bg text-error-text border-error",
 };
 
 export default function ReviewPage() {
@@ -59,6 +59,7 @@ export default function ReviewPage() {
   const id = params.id as string;
 
   const [mode, setMode] = useState<"free" | "structured">("free");
+  const [viewMode, setViewMode] = useState<"form" | "result">("form");
 
   const [notes, setNotes] = useState("");
   const [companyName, setCompanyName] = useState("");
@@ -69,13 +70,15 @@ export default function ReviewPage() {
   const [interviewFormat, setInterviewFormat] = useState("");
   const [interviewerName, setInterviewerName] = useState("");
   const [existingInterviewId, setExistingInterviewId] = useState("");
+  const [hasExistingReview, setHasExistingReview] = useState(false);
 
   const [entries, setEntries] = useState<StructuredEntry[]>([
     { id: crypto.randomUUID(), question: "", answer: "", interviewerReaction: "", selfFeeling: "" },
   ]);
 
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<ReviewResult | null>(null);
+  const [fetching, setFetching] = useState(true);
+  const [result, setResult] = useState<any>(null);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -84,16 +87,24 @@ export default function ReviewPage() {
     if (r) setRound(Number(r));
     if (iid) {
       setExistingInterviewId(iid);
-      interviewsApi.get(iid).then((res) => {
+      interviewsApi.get(id, iid).then((res) => {
         const iv = res.data;
         if (iv.interview_date) setInterviewDate(iv.interview_date);
         if (iv.format) setInterviewFormat(iv.format);
         if (iv.interviewer) setInterviewerName(iv.interviewer);
         if (iv.raw_notes) setNotes(iv.raw_notes);
         if (iv.round) setRound(iv.round);
-      }).catch(() => {});
+
+        if (iv.ai_analysis && Object.keys(iv.ai_analysis).length > 0) {
+          setResult(iv.ai_analysis);
+          setHasExistingReview(true);
+          setViewMode("result");
+        }
+      }).catch(() => {}).finally(() => setFetching(false));
+    } else {
+      setFetching(false);
     }
-  }, [searchParams]);
+  }, [searchParams, id]);
 
   function addEntry() {
     setEntries([
@@ -160,6 +171,8 @@ export default function ReviewPage() {
       const res = await reviewApi.analyze(payload);
       setResult(res.data);
       setSaved(true);
+      setViewMode("result");
+      setHasExistingReview(true);
     } catch {
       alert("分析失败，请重试");
     } finally {
@@ -168,368 +181,501 @@ export default function ReviewPage() {
   }
 
   function getScoreColor(score: number): string {
-    if (score >= 8) return "bg-green-100 text-green-700";
-    if (score >= 5) return "bg-yellow-100 text-yellow-700";
-    return "bg-red-100 text-red-700";
+    if (score >= 8) return "bg-success-bg text-success-text";
+    if (score >= 5) return "bg-warning-bg text-warning-text";
+    return "bg-error-bg text-error-text";
   }
 
   function getScoreIcon(score: number) {
-    if (score >= 8) return <CheckCircle className="h-4 w-4 text-green-600" />;
-    if (score >= 5) return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
-    return <XCircle className="h-4 w-4 text-red-600" />;
+    if (score >= 8) return <CheckCircle className="h-4 w-4 text-success" />;
+    if (score >= 5) return <AlertTriangle className="h-4 w-4 text-warning" />;
+    return <XCircle className="h-4 w-4 text-error" />;
+  }
+
+  function getScoreLabel(score: number): string {
+    if (score >= 9) return "优秀";
+    if (score >= 8) return "良好";
+    if (score >= 6) return "合格";
+    if (score >= 4) return "不足";
+    return "薄弱";
+  }
+
+  function getScoreBarWidth(score: number): string {
+    return `${score * 10}%`;
+  }
+
+  if (fetching) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-text-muted" />
+      </div>
+    );
   }
 
   return (
     <div className="mx-auto max-w-4xl">
       <Link
         href={`/company/${id}`}
-        className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
+        className="mb-4 inline-flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary"
       >
         <ArrowLeft className="h-4 w-4" />
         返回公司详情
       </Link>
 
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">面试复盘</h1>
-        <div className="flex rounded-lg border border-slate-200 bg-white p-0.5">
-          <button
-            onClick={() => setMode("free")}
-            className={cn(
-              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium",
-              mode === "free"
-                ? "bg-blue-100 text-blue-700"
-                : "text-slate-500 hover:text-slate-700",
-            )}
-          >
-            <FileText className="h-3.5 w-3.5" />
-            自由模式
-          </button>
-          <button
-            onClick={() => setMode("structured")}
-            className={cn(
-              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium",
-              mode === "structured"
-                ? "bg-blue-100 text-blue-700"
-                : "text-slate-500 hover:text-slate-700",
-            )}
-          >
-            <ListTodo className="h-3.5 w-3.5" />
-            结构化模式
-          </button>
+        <div>
+          <h1 className="text-2xl font-bold text-text-primary">
+            {hasExistingReview ? "复盘结果" : "面试复盘"}
+          </h1>
+          <p className="mt-1 text-sm text-text-secondary">
+            第 {round} 轮面试{hasExistingReview ? "分析结果" : "记录与分析"}
+          </p>
         </div>
+        {hasExistingReview && viewMode === "result" && (
+          <button
+            onClick={() => setViewMode("form")}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-text-secondary hover:bg-surface-secondary"
+          >
+            <Pencil className="h-4 w-4" />
+            编辑复盘
+          </button>
+        )}
+        {viewMode === "form" && (
+          <div className="flex rounded-lg border border-border bg-surface p-0.5">
+            <button
+              onClick={() => setMode("free")}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium",
+                mode === "free"
+                  ? "bg-info-bg text-info-text"
+                  : "text-text-secondary hover:text-text-primary",
+              )}
+            >
+              <FileText className="h-3.5 w-3.5" />
+              自由模式
+            </button>
+            <button
+              onClick={() => setMode("structured")}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium",
+                mode === "structured"
+                  ? "bg-info-bg text-info-text"
+                  : "text-text-secondary hover:text-text-primary",
+              )}
+            >
+              <ListTodo className="h-3.5 w-3.5" />
+              结构化模式
+            </button>
+          </div>
+        )}
       </div>
 
-      <form onSubmit={handleAnalyze} className="mb-8 rounded-xl border border-slate-200 bg-white p-6">
-        {mode === "free" ? (
-          <div className="mb-4">
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              面试笔记 <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={8}
-              placeholder="粘贴你的面试原始笔记..."
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {entries.map((entry, index) => (
-              <div
-                key={entry.id}
-                className="rounded-lg border border-slate-200 bg-slate-50 p-4"
-              >
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-sm font-medium text-slate-700">
-                    问题 {index + 1}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => removeEntry(entry.id)}
-                    disabled={entries.length <= 1}
-                    className="rounded-md p-1 text-slate-400 hover:bg-slate-200 hover:text-red-500 disabled:opacity-30"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-slate-600">
-                      面试官问了什么 <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={entry.question}
-                      onChange={(e) => updateEntry(entry.id, "question", e.target.value)}
-                      placeholder="例如：解释 React diff 算法"
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    />
+      {viewMode === "form" && (
+        <form onSubmit={handleAnalyze} className="mb-8 rounded-xl border border-border bg-surface p-6">
+          {mode === "free" ? (
+            <div className="mb-4">
+              <label className="mb-1 block text-sm font-medium text-text-secondary">
+                面试笔记 <span className="text-error">*</span>
+              </label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={8}
+                placeholder="粘贴你的面试原始笔记..."
+                className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus placeholder:text-text-muted"
+              />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {entries.map((entry, index) => (
+                <div
+                  key={entry.id}
+                  className="rounded-lg border border-border bg-surface/50 p-4"
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="text-sm font-medium text-text-primary">
+                      问题 {index + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeEntry(entry.id)}
+                      disabled={entries.length <= 1}
+                      className="rounded-md p-1 text-text-muted hover:bg-surface-muted hover:text-error disabled:opacity-30"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
 
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-slate-600">
-                      你是怎么回答的 <span className="text-red-500">*</span>
-                    </label>
-                    <textarea
-                      value={entry.answer}
-                      onChange={(e) => updateEntry(entry.id, "answer", e.target.value)}
-                      rows={3}
-                      placeholder="尽可能回忆你的回答要点..."
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-3">
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-600">
-                        面试官反应
+                      <label className="mb-1 block text-xs font-medium text-text-secondary">
+                        面试官问了什么 <span className="text-error">*</span>
                       </label>
                       <input
                         type="text"
-                        value={entry.interviewerReaction}
-                        onChange={(e) =>
-                          updateEntry(entry.id, "interviewerReaction", e.target.value)
-                        }
-                        placeholder="例如：追问了细节 / 没有追问"
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        value={entry.question}
+                        onChange={(e) => updateEntry(entry.id, "question", e.target.value)}
+                        placeholder="例如：解释 React diff 算法"
+                        className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus placeholder:text-text-muted"
                       />
                     </div>
+
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-600">
-                        自我感觉
+                      <label className="mb-1 block text-xs font-medium text-text-secondary">
+                        你是怎么回答的 <span className="text-error">*</span>
                       </label>
-                      <div className="flex gap-2">
-                        {(["good", "ok", "bad"] as const).map((feeling) => (
-                          <button
-                            key={feeling}
-                            type="button"
-                            onClick={() => updateEntry(entry.id, "selfFeeling", feeling)}
-                            className={cn(
-                              "flex-1 rounded-lg border px-3 py-2 text-xs font-medium",
-                              entry.selfFeeling === feeling
-                                ? reactionColors[feeling]
-                                : "border-slate-200 bg-white text-slate-500",
-                            )}
-                          >
-                            {reactionLabels[feeling]}
-                          </button>
-                        ))}
+                      <textarea
+                        value={entry.answer}
+                        onChange={(e) => updateEntry(entry.id, "answer", e.target.value)}
+                        rows={3}
+                        placeholder="尽可能回忆你的回答要点..."
+                        className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus placeholder:text-text-muted"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-text-secondary">
+                          面试官反应
+                        </label>
+                        <input
+                          type="text"
+                          value={entry.interviewerReaction}
+                          onChange={(e) =>
+                            updateEntry(entry.id, "interviewerReaction", e.target.value)
+                          }
+                          placeholder="例如：追问了细节 / 没有追问"
+                          className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus placeholder:text-text-muted"
+                        />
                       </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-text-secondary">
+                          自我感觉
+                        </label>
+                        <div className="flex gap-2">
+                          {(["good", "ok", "bad"] as const).map((feeling) => (
+                            <button
+                              key={feeling}
+                              type="button"
+                              onClick={() => updateEntry(entry.id, "selfFeeling", feeling)}
+                              className={cn(
+                                "flex-1 rounded-lg border px-3 py-2 text-xs font-medium",
+                                entry.selfFeeling === feeling
+                                  ? reactionColors[feeling]
+                                  : "border-border bg-surface text-text-secondary",
+                              )}
+                            >
+                              {reactionLabels[feeling]}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={addEntry}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-3 text-sm text-text-secondary hover:border-brand hover:text-brand"
+              >
+                <Plus className="h-4 w-4" />
+                添加问题
+              </button>
+            </div>
+          )}
+
+          <div className="mt-4 grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-text-secondary">面试日期</label>
+              <input
+                type="date"
+                value={interviewDate}
+                onChange={(e) => setInterviewDate(e.target.value)}
+                className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-text-secondary">面试形式</label>
+              <select
+                value={interviewFormat}
+                onChange={(e) => setInterviewFormat(e.target.value)}
+                className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus"
+              >
+                <option value="">请选择</option>
+                <option value="phone">电话</option>
+                <option value="video">视频</option>
+                <option value="onsite">现场</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-text-secondary">面试官</label>
+              <input
+                type="text"
+                value={interviewerName}
+                onChange={(e) => setInterviewerName(e.target.value)}
+                placeholder="可选"
+                className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus placeholder:text-text-muted"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-text-secondary">轮次</label>
+              <input
+                type="number"
+                min={1}
+                value={round}
+                onChange={(e) => setRound(Number(e.target.value))}
+                className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-text-secondary">JD 关键点</label>
+              <input
+                type="text"
+                value={jdKeyPoints}
+                onChange={(e) => setJdKeyPoints(e.target.value)}
+                placeholder="逗号分隔，可选"
+                className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus placeholder:text-text-muted"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 flex justify-end">
+            <button
+              type="submit"
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-6 py-2.5 text-sm font-medium text-text-inverse hover:bg-brand-hover disabled:opacity-50"
+            >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {hasExistingReview ? "重新分析" : "AI 分析"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {loading && (
+        <div className="flex flex-col items-center justify-center py-16 text-text-muted">
+          <Loader2 className="mb-3 h-8 w-8 animate-spin text-brand" />
+          <p className="text-sm">AI 正在分析你的面试表现...</p>
+          <p className="mt-1 text-xs text-text-muted">可能需要 30 秒以上</p>
+        </div>
+      )}
+
+      {viewMode === "result" && result && (
+        <div className="space-y-6">
+          <ReviewResultDisplay
+            result={result}
+            companyId={id}
+            round={round}
+            saved={saved}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReviewResultDisplay({
+  result,
+  companyId,
+  round,
+  saved,
+}: {
+  result: any;
+  companyId: string;
+  round: number;
+  saved: boolean;
+}) {
+  const questions = result.questions || [];
+  const weakPoints = result.weak_points || [];
+  const strongPoints = result.strong_points || [];
+  const predictions = result.next_round_prediction || [];
+  const signals = result.interviewer_signals || [];
+
+  const avgScore = questions.length > 0
+    ? (questions.reduce((sum: number, q: any) => sum + (q.score || 0), 0) / questions.length).toFixed(1)
+    : "—";
+
+  function getScoreColor(score: number): string {
+    if (score >= 8) return "bg-success-bg text-success-text";
+    if (score >= 5) return "bg-warning-bg text-warning-text";
+    return "bg-error-bg text-error-text";
+  }
+
+  function getScoreIcon(score: number) {
+    if (score >= 8) return <CheckCircle className="h-4 w-4 text-success" />;
+    if (score >= 5) return <AlertTriangle className="h-4 w-4 text-warning" />;
+    return <XCircle className="h-4 w-4 text-error" />;
+  }
+
+  function getScoreBarColor(score: number): string {
+    if (score >= 8) return "bg-success";
+    if (score >= 5) return "bg-warning";
+    return "bg-error";
+  }
+
+  return (
+    <>
+      <div className="rounded-xl border border-border bg-surface p-6">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-text-primary">第 {round} 轮面试分析</h2>
+            <p className="mt-1 text-sm text-text-secondary">AI 对你的面试表现进行了全面评估</p>
+          </div>
+          <div className="text-right">
+            <div className="text-3xl font-bold text-text-primary">{avgScore}</div>
+            <div className="text-xs text-text-secondary">平均分 / 10</div>
+          </div>
+        </div>
+
+        {questions.length > 0 && (
+          <div className="space-y-4">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-text-secondary">
+              <MessageSquare className="h-4 w-4" />
+              问题详情 ({questions.length} 题)
+            </h3>
+            {questions.map((q: any, i: number) => (
+              <div key={i} className="rounded-lg border border-border bg-surface/50 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-text-muted">Q{i + 1}</span>
+                      <p className="text-sm font-medium text-text-primary">{q.question}</p>
+                    </div>
+                    {q.your_answer_summary && (
+                      <p className="mt-2 text-xs text-text-secondary">
+                        <span className="font-medium">你的回答：</span>
+                        {q.your_answer_summary}
+                      </p>
+                    )}
+                    <p className="mt-2 text-sm text-text-secondary">{q.assessment}</p>
+                    {q.improvement && (
+                      <div className="mt-2 flex items-start gap-1.5 rounded-md bg-info-bg p-2 text-sm text-info-text">
+                        <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        <span>{q.improvement}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 flex-col items-center gap-1">
+                    <span className={cn("flex items-center gap-1 rounded-full px-2.5 py-1 text-sm font-semibold", getScoreColor(q.score))}>
+                      {getScoreIcon(q.score)}
+                      {q.score}
+                    </span>
+                    <span className="text-[10px] text-text-muted">{getScoreLabel(q.score)}</span>
+                    <div className="mt-1 h-1.5 w-16 rounded-full bg-surface-muted">
+                      <div
+                        className={cn("h-full rounded-full transition-all", getScoreBarColor(q.score))}
+                        style={{ width: `${q.score * 10}%` }}
+                      />
                     </div>
                   </div>
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </div>
 
-            <button
-              type="button"
-              onClick={addEntry}
-              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 py-3 text-sm text-slate-500 hover:border-blue-400 hover:text-blue-600"
-            >
-              <Plus className="h-4 w-4" />
-              添加问题
-            </button>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {weakPoints.length > 0 && (
+          <div className="rounded-xl border border-error/30 bg-error-bg p-5">
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-error-text">
+              <XCircle className="h-4 w-4" />
+              薄弱点 ({weakPoints.length})
+            </h3>
+            <div className="space-y-2">
+              {weakPoints.map((point: string, i: number) => (
+                <div key={i} className="flex items-center gap-2 rounded-md bg-surface px-3 py-2 text-sm">
+                  <TrendingDown className="h-3.5 w-3.5 shrink-0 text-error" />
+                  <span className="text-error-text">{point}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
-        <div className="mt-4 grid grid-cols-2 gap-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">面试日期</label>
-            <input
-              type="date"
-              value={interviewDate}
-              onChange={(e) => setInterviewDate(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            />
+        {strongPoints.length > 0 && (
+          <div className="rounded-xl border border-success/30 bg-success-bg p-5">
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-success-text">
+              <CheckCircle className="h-4 w-4" />
+              优势 ({strongPoints.length})
+            </h3>
+            <div className="space-y-2">
+              {strongPoints.map((point: string, i: number) => (
+                <div key={i} className="flex items-center gap-2 rounded-md bg-surface px-3 py-2 text-sm">
+                  <TrendingUp className="h-3.5 w-3.5 shrink-0 text-success" />
+                  <span className="text-success-text">{point}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">面试形式</label>
-            <select
-              value={interviewFormat}
-              onChange={(e) => setInterviewFormat(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+        )}
+      </div>
+
+      {predictions.length > 0 && (
+        <div className="rounded-xl border border-info/30 bg-info-bg p-5">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-info-text">
+            <Target className="h-4 w-4" />
+            下一轮预测
+          </h3>
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+            {predictions.map((pred: string, i: number) => (
+              <div key={i} className="flex items-center gap-2 rounded-md bg-surface px-3 py-2 text-sm text-info-text">
+                <BookOpen className="h-3.5 w-3.5 shrink-0" />
+                {pred}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {signals.length > 0 && (
+        <div className="rounded-xl border border-warning/30 bg-warning-bg p-5">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-warning-text">
+            <AlertTriangle className="h-4 w-4" />
+            面试官信号
+          </h3>
+          <div className="space-y-2">
+            {signals.map((signal: string, i: number) => (
+              <div key={i} className="flex items-start gap-2 rounded-md bg-surface px-3 py-2 text-sm text-warning-text">
+                <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                {signal}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {saved && (
+        <div className="rounded-xl border border-success/30 bg-success-bg p-4 text-center">
+          <CheckCircle className="mx-auto mb-2 h-6 w-6 text-success" />
+          <p className="text-sm font-medium text-success-text">复盘已保存</p>
+          <div className="mt-3 flex justify-center gap-2">
+            <Link
+              href={`/company/${companyId}`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-success px-4 py-2 text-sm font-medium text-success-text hover:bg-success-bg/80"
             >
-              <option value="">请选择</option>
-              <option value="phone">电话</option>
-              <option value="video">视频</option>
-              <option value="onsite">现场</option>
-            </select>
+              返回公司详情
+            </Link>
+            <Link
+              href={`/company/${companyId}/prep`}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-text-inverse hover:bg-brand-hover"
+            >
+              <Lightbulb className="h-4 w-4" />
+              生成备战计划
+            </Link>
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">面试官</label>
-            <input
-              type="text"
-              value={interviewerName}
-              onChange={(e) => setInterviewerName(e.target.value)}
-              placeholder="可选"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">轮次</label>
-            <input
-              type="number"
-              min={1}
-              value={round}
-              onChange={(e) => setRound(Number(e.target.value))}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">JD 关键点</label>
-            <input
-              type="text"
-              value={jdKeyPoints}
-              onChange={(e) => setJdKeyPoints(e.target.value)}
-              placeholder="逗号分隔，可选"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-
-        <div className="mt-4 flex justify-end">
-          <button
-            type="submit"
-            disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            AI 分析
-          </button>
-        </div>
-      </form>
-
-      {loading && (
-        <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-          <Loader2 className="mb-3 h-8 w-8 animate-spin text-blue-500" />
-          <p className="text-sm">AI 正在分析你的面试表现...</p>
-          <p className="mt-1 text-xs text-slate-400">可能需要 30 秒以上</p>
         </div>
       )}
-
-      {result && (
-        <div className="space-y-6">
-          {result.questions && result.questions.length > 0 && (
-            <div className="rounded-xl border border-slate-200 bg-white p-6">
-              <h2 className="mb-4 text-lg font-semibold text-slate-900">问题列表</h2>
-              <div className="space-y-4">
-                {result.questions.map((q, i) => (
-                  <div key={i} className="rounded-lg border border-slate-100 bg-slate-50 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm font-medium text-slate-900">{q.question}</p>
-                      <span
-                        className={cn(
-                          "flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold",
-                          getScoreColor(q.score),
-                        )}
-                      >
-                        {getScoreIcon(q.score)}
-                        {q.score}/10
-                      </span>
-                    </div>
-                    {q.your_answer_summary && (
-                      <p className="mt-2 text-xs text-slate-500">{q.your_answer_summary}</p>
-                    )}
-                    <p className="mt-2 text-sm text-slate-600">{q.assessment}</p>
-                    {q.improvement && (
-                      <p className="mt-1 text-sm text-blue-600">💡 {q.improvement}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {result.weak_points && result.weak_points.length > 0 && (
-              <div className="rounded-xl border border-red-200 bg-red-50/50 p-4">
-                <h3 className="mb-2 text-sm font-semibold text-red-800">薄弱点</h3>
-                <div className="flex flex-wrap gap-1.5">
-                  {result.weak_points.map((point, i) => (
-                    <span
-                      key={i}
-                      className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs text-red-700"
-                    >
-                      {point}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {result.strong_points && result.strong_points.length > 0 && (
-              <div className="rounded-xl border border-green-200 bg-green-50/50 p-4">
-                <h3 className="mb-2 text-sm font-semibold text-green-800">优势</h3>
-                <div className="flex flex-wrap gap-1.5">
-                  {result.strong_points.map((point, i) => (
-                    <span
-                      key={i}
-                      className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs text-green-700"
-                    >
-                      {point}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {result.next_round_prediction && result.next_round_prediction.length > 0 && (
-            <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4">
-              <h3 className="mb-2 text-sm font-semibold text-blue-800">下一轮预测</h3>
-              <div className="flex flex-wrap gap-1.5">
-                {result.next_round_prediction.map((pred, i) => (
-                  <span
-                    key={i}
-                    className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs text-blue-700"
-                  >
-                    {pred}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {result.interviewer_signals && result.interviewer_signals.length > 0 && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
-              <h3 className="mb-2 text-sm font-semibold text-amber-800">面试官信号</h3>
-              <div className="flex flex-wrap gap-1.5">
-                {result.interviewer_signals.map((signal, i) => (
-                  <span
-                    key={i}
-                    className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs text-amber-700"
-                  >
-                    {signal}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {saved && (
-            <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-center">
-              <CheckCircle className="mx-auto mb-2 h-6 w-6 text-green-600" />
-              <p className="text-sm font-medium text-green-800">复盘已保存</p>
-              <div className="mt-3 flex justify-center gap-2">
-                <Link
-                  href={`/company/${id}`}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-green-300 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-100"
-                >
-                  返回公司详情
-                </Link>
-                <Link
-                  href={`/company/${id}/prep`}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600"
-                >
-                  生成备战计划
-                </Link>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+    </>
   );
+}
+
+function getScoreLabel(score: number): string {
+  if (score >= 9) return "优秀";
+  if (score >= 8) return "良好";
+  if (score >= 6) return "合格";
+  if (score >= 4) return "不足";
+  return "薄弱";
 }

@@ -22,8 +22,6 @@ import {
   ChevronDown,
   Pencil,
   Trash2,
-  Eye,
-  XCircle,
 } from "lucide-react";
 import { companiesApi, interviewsApi } from "@/lib/api-client";
 import { formatDate, cn } from "@/lib/utils";
@@ -72,10 +70,10 @@ interface ChainData {
 }
 
 const statusColors: Record<string, string> = {
-  applied: "bg-blue-100 text-blue-700",
-  interviewing: "bg-amber-100 text-amber-700",
-  passed: "bg-green-100 text-green-700",
-  rejected: "bg-red-100 text-red-700",
+  applied: "bg-info-bg text-info-text",
+  interviewing: "bg-warning-bg text-warning-text",
+  passed: "bg-success-bg text-success-text",
+  rejected: "bg-error-bg text-error-text",
 };
 
 const statusLabels: Record<string, string> = {
@@ -106,9 +104,6 @@ export default function CompanyDetailPage() {
   const [rejectionData, setRejectionData] = useState<any>(null);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
-  const [showReviewDetail, setShowReviewDetail] = useState(false);
-  const [reviewDetailData, setReviewDetailData] = useState<any>(null);
-  const [reviewRound, setReviewRound] = useState(1);
 
   useEffect(() => {
     loadData();
@@ -151,7 +146,7 @@ export default function CompanyDetailPage() {
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-text-muted" />
       </div>
     );
   }
@@ -164,17 +159,17 @@ export default function CompanyDetailPage() {
     <div>
       <Link
         href="/"
-        className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
+        className="mb-4 inline-flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary"
       >
         <ArrowLeft className="h-4 w-4" />
         返回看板
       </Link>
 
-      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-6">
+      <div className="mb-6 rounded-xl border border-border bg-surface p-6">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">{company.name}</h1>
-            <p className="mt-1 text-slate-500">{company.position}</p>
+            <h1 className="text-2xl font-bold text-text-primary">{company.name}</h1>
+            <p className="mt-1 text-text-secondary">{company.position}</p>
           </div>
 
           <div className="relative">
@@ -183,7 +178,7 @@ export default function CompanyDetailPage() {
               disabled={statusUpdating}
               className={cn(
                 "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                statusColors[company.status] || "bg-slate-100 text-slate-600",
+                statusColors[company.status] || "bg-surface-muted text-text-secondary",
               )}
             >
               {statusLabels[company.status] || company.status}
@@ -191,29 +186,29 @@ export default function CompanyDetailPage() {
             </button>
 
             {showStatusMenu && (
-              <div className="absolute right-0 z-50 mt-1 w-40 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+              <div className="absolute right-0 z-50 mt-1 w-40 rounded-lg border border-border bg-surface py-1 shadow-lg">
                 {(["applied", "interviewing", "passed", "rejected"] as const).map(
                   (s) => (
                     <button
                       key={s}
                       onClick={() => updateStatus(s)}
                       className={cn(
-                        "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-slate-50",
+                        "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-surface-secondary",
                         company.status === s
-                          ? "font-medium text-slate-900"
-                          : "text-slate-600",
+                          ? "font-medium text-text-primary"
+                          : "text-text-secondary",
                       )}
                     >
                       <span
                         className={cn(
                           "h-2 w-2 rounded-full",
                           s === "applied"
-                            ? "bg-blue-500"
+                            ? "bg-info"
                             : s === "interviewing"
-                              ? "bg-amber-500"
+                              ? "bg-warning"
                               : s === "passed"
-                                ? "bg-green-500"
-                                : "bg-red-500",
+                                ? "bg-success"
+                                : "bg-error",
                         )}
                       />
                       {statusLabels[s]}
@@ -225,7 +220,7 @@ export default function CompanyDetailPage() {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-500">
+        <div className="mt-4 flex flex-wrap gap-4 text-sm text-text-secondary">
           {company.applied_date && (
             <span className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
@@ -248,7 +243,7 @@ export default function CompanyDetailPage() {
         <div className="mt-4">
           <button
             onClick={() => setShowAddInterview(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border-strong px-3 py-1.5 text-sm font-medium text-text-secondary hover:bg-surface-secondary"
           >
             <Plus className="h-4 w-4" />
             添加面试
@@ -256,9 +251,9 @@ export default function CompanyDetailPage() {
         </div>
       </div>
 
-      {chain && Object.keys(chain.weak_point_tracking).length > 0 && (
-        <div className="mb-6 rounded-xl border border-red-200 bg-red-50/50 p-5">
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-red-800">
+              {chain && Object.keys(chain.weak_point_tracking).length > 0 && (
+        <div className="mb-6 rounded-xl border border-error/30 bg-error-bg p-5">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-error-text">
             <AlertTriangle className="h-4 w-4" />
             薄弱点追踪
           </h2>
@@ -268,19 +263,19 @@ export default function CompanyDetailPage() {
               .map(([wp, data]) => (
                 <div
                   key={wp}
-                  className="flex items-center justify-between rounded-lg bg-white px-3 py-2"
+                  className="flex items-center justify-between rounded-lg bg-surface px-3 py-2"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-slate-900">{wp}</span>
-                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+                    <span className="text-sm font-medium text-text-primary">{wp}</span>
+                    <span className="rounded-full bg-error-bg px-2 py-0.5 text-xs text-error-text">
                       {data.count} 次
                     </span>
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-slate-500">
+                  <div className="flex items-center gap-1 text-xs text-text-secondary">
                     <span>
                       第 {data.first_round} → 第 {data.last_round} 轮
                     </span>
-                    <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                    <ChevronRight className="h-3.5 w-3.5 text-text-muted" />
                   </div>
                 </div>
               ))}
@@ -288,11 +283,11 @@ export default function CompanyDetailPage() {
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6">
-        <h2 className="mb-4 text-lg font-semibold text-slate-900">面试链</h2>
+        <div className="rounded-xl border border-border bg-surface p-6">
+        <h2 className="mb-4 text-lg font-semibold text-text-primary">面试链</h2>
         {!chain || chain.rounds.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-            <Calendar className="mb-3 h-10 w-10 text-slate-300" />
+          <div className="flex flex-col items-center justify-center py-12 text-text-muted">
+            <Calendar className="mb-3 h-10 w-10 text-text-muted/50" />
             <p className="text-sm">暂无面试记录</p>
             <p className="mt-1 text-xs">点击上方&quot;添加面试&quot;开始记录</p>
           </div>
@@ -304,28 +299,28 @@ export default function CompanyDetailPage() {
               return (
                 <div
                   key={round.id}
-                  className="group relative rounded-lg border border-slate-100 bg-slate-50 p-4 transition-colors hover:border-slate-200 hover:bg-white"
+                  className="group relative rounded-lg border border-border bg-surface/50 p-4 transition-colors hover:border-border-strong hover:bg-surface"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-info-bg text-sm font-semibold text-info-text">
                       {round.round}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-slate-900">
+                        <span className="text-sm font-medium text-text-primary">
                           第 {round.round} 轮
                         </span>
-                        <span className="inline-flex items-center gap-1 rounded bg-white px-2 py-0.5 text-xs text-slate-500">
+                        <span className="inline-flex items-center gap-1 rounded bg-surface px-2 py-0.5 text-xs text-text-secondary">
                           <FormatIcon className="h-3 w-3" />
                           {round.format || "—"}
                         </span>
                         {hasAnalysis && (
-                          <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700">
+                          <span className="rounded bg-success-bg px-1.5 py-0.5 text-[10px] font-medium text-success-text">
                             已复盘
                           </span>
                         )}
                       </div>
-                      <div className="mt-1 text-xs text-slate-500">
+                      <div className="mt-1 text-xs text-text-secondary">
                         {round.interview_date && (
                           <span>{formatDate(round.interview_date)}</span>
                         )}
@@ -338,7 +333,7 @@ export default function CompanyDetailPage() {
                           {round.weak_points.map((wp) => (
                             <span
                               key={wp}
-                              className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] text-red-700"
+                              className="rounded bg-error-bg px-1.5 py-0.5 text-[10px] text-error-text"
                             >
                               {wp}
                             </span>
@@ -350,7 +345,7 @@ export default function CompanyDetailPage() {
                           {round.strong_points.map((sp) => (
                             <span
                               key={sp}
-                              className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] text-green-700"
+                              className="rounded bg-success-bg px-1.5 py-0.5 text-[10px] text-success-text"
                             >
                               {sp}
                             </span>
@@ -360,32 +355,13 @@ export default function CompanyDetailPage() {
                     </div>
 
                     <div className="flex shrink-0 items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                      {hasAnalysis ? (
-                        <button
-                          onClick={async () => {
-                            try {
-                              const res = await interviewsApi.get(round.id);
-                              setReviewDetailData(res.data);
-                              setReviewRound(round.round);
-                              setShowReviewDetail(true);
-                            } catch {
-                              alert("加载失败");
-                            }
-                          }}
-                          className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                          查看复盘
-                        </button>
-                      ) : (
-                        <Link
-                          href={`/company/${id}/review?interview_id=${round.id}&round=${round.round}`}
-                          className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
-                        >
-                          <FileText className="h-3.5 w-3.5" />
-                          写复盘
-                        </Link>
-                      )}
+                      <Link
+                        href={`/company/${id}/review?interview_id=${round.id}&round=${round.round}`}
+                        className="inline-flex items-center gap-1 rounded-md bg-info-bg px-2.5 py-1.5 text-xs font-medium text-info-text hover:bg-info-bg/70"
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        {hasAnalysis ? "查看复盘" : "写复盘"}
+                      </Link>
                       <button
                         onClick={async () => {
                           try {
@@ -399,14 +375,14 @@ export default function CompanyDetailPage() {
                             alert("加载失败");
                           }
                         }}
-                        className="inline-flex items-center gap-1 rounded-md bg-green-50 px-2.5 py-1.5 text-xs font-medium text-green-700 hover:bg-green-100"
+                        className="inline-flex items-center gap-1 rounded-md bg-success-bg px-2.5 py-1.5 text-xs font-medium text-success-text hover:bg-success-bg/70"
                       >
                         <BookOpen className="h-3.5 w-3.5" />
                         面试前速览
                       </button>
                       <Link
                         href={`/company/${id}/prep?round=${round.round + 1}`}
-                        className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100"
+                        className="inline-flex items-center gap-1 rounded-md bg-warning-bg px-2.5 py-1.5 text-xs font-medium text-warning-text hover:bg-warning-bg/70"
                       >
                         <Lightbulb className="h-3.5 w-3.5" />
                         备战下一轮
@@ -445,23 +421,6 @@ export default function CompanyDetailPage() {
           onClose={() => {
             setShowRejection(false);
             setRejectionData(null);
-          }}
-        />
-      )}
-
-      {showReviewDetail && reviewDetailData && (
-        <ReviewDetailModal
-          data={reviewDetailData}
-          companyId={id}
-          round={reviewRound}
-          onClose={() => {
-            setShowReviewDetail(false);
-            setReviewDetailData(null);
-          }}
-          onEdit={() => {
-            setShowReviewDetail(false);
-            setReviewDetailData(null);
-            router.push(`/company/${id}/review?interview_id=${reviewDetailData.id}&round=${reviewRound}`);
           }}
         />
       )}
@@ -508,18 +467,18 @@ function AddInterviewModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-overlay backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-lg"
+        className="w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">添加面试</h2>
+          <h2 className="text-lg font-semibold text-text-primary">添加面试</h2>
           <button
             onClick={onClose}
-            className="rounded-md p-1 text-slate-400 hover:bg-slate-100"
+            className="rounded-md p-1 text-text-muted hover:bg-surface-secondary"
           >
             <X className="h-4 w-4" />
           </button>
@@ -527,25 +486,25 @@ function AddInterviewModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
-                轮次 <span className="text-red-500">*</span>
+              <label className="mb-1 block text-sm font-medium text-text-secondary">
+                轮次 <span className="text-error">*</span>
               </label>
               <input
                 type="number"
                 min={1}
                 value={round}
                 onChange={(e) => setRound(Number(e.target.value))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
+              <label className="mb-1 block text-sm font-medium text-text-secondary">
                 形式
               </label>
               <select
                 value={format}
                 onChange={(e) => setFormat(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus"
               >
                 <option value="phone">电话</option>
                 <option value="video">视频</option>
@@ -556,18 +515,18 @@ function AddInterviewModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
+              <label className="mb-1 block text-sm font-medium text-text-secondary">
                 日期
               </label>
               <input
                 type="date"
                 value={interviewDate}
                 onChange={(e) => setInterviewDate(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
+              <label className="mb-1 block text-sm font-medium text-text-secondary">
                 面试官
               </label>
               <input
@@ -575,13 +534,13 @@ function AddInterviewModal({
                 value={interviewer}
                 onChange={(e) => setInterviewer(e.target.value)}
                 placeholder="可选"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus placeholder:text-text-muted"
               />
             </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
+            <label className="mb-1 block text-sm font-medium text-text-secondary">
               面试笔记
             </label>
             <textarea
@@ -589,19 +548,19 @@ function AddInterviewModal({
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
               placeholder="可选，也可以留到复盘时再填写..."
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus placeholder:text-text-muted"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
+            <label className="mb-1 block text-sm font-medium text-text-secondary">
               预计出结果日期
             </label>
             <input
               type="date"
               value={expectedResultDate}
               onChange={(e) => setExpectedResultDate(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus"
             />
           </div>
 
@@ -609,14 +568,14 @@ function AddInterviewModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-secondary"
             >
               取消
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-text-inverse hover:bg-brand-hover disabled:opacity-50"
             >
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
               添加
@@ -639,33 +598,33 @@ function BriefModal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-overlay backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-6 shadow-lg"
+        className="w-full max-w-lg rounded-xl border border-border bg-surface p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 className="text-lg font-semibold text-text-primary">
             面试前速览 · 第 {data.next_round} 轮
           </h2>
           <button
             onClick={onClose}
-            className="rounded-md p-1 text-slate-400 hover:bg-slate-100"
+            className="rounded-md p-1 text-text-muted hover:bg-surface-secondary"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-800">
+          <div className="rounded-lg bg-info-bg p-3 text-sm text-info-text">
             <p className="font-semibold">{data.quick_review}</p>
           </div>
 
           {data.previous_weak_points.length > 0 && (
             <div>
-              <h3 className="mb-2 text-sm font-semibold text-slate-700">
+              <h3 className="mb-2 text-sm font-semibold text-text-secondary">
                 薄弱点回顾
               </h3>
               <div className="space-y-1.5">
@@ -673,21 +632,21 @@ function BriefModal({
                   (wp: { point: string; count: number; avg_score: number }, i: number) => (
                     <div
                       key={i}
-                      className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2 text-sm"
+                      className="flex items-center justify-between rounded-md bg-surface/50 px-3 py-2 text-sm"
                     >
-                      <span className="text-slate-700">{wp.point}</span>
+                      <span className="text-text-secondary">{wp.point}</span>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-500">
+                        <span className="text-xs text-text-secondary">
                           出现 {wp.count} 次
                         </span>
                         <span
                           className={cn(
                             "rounded-full px-2 py-0.5 text-xs font-medium",
                             wp.avg_score >= 7
-                              ? "bg-green-100 text-green-700"
+                              ? "bg-success-bg text-success-text"
                               : wp.avg_score >= 5
-                                ? "bg-amber-100 text-amber-700"
-                                : "bg-red-100 text-red-700",
+                                ? "bg-warning-bg text-warning-text"
+                                : "bg-error-bg text-error-text",
                           )}
                         >
                           {wp.avg_score}/10
@@ -702,14 +661,14 @@ function BriefModal({
 
           {data.next_round_prediction.length > 0 && (
             <div>
-              <h3 className="mb-2 text-sm font-semibold text-slate-700">
+              <h3 className="mb-2 text-sm font-semibold text-text-secondary">
                 下一轮预测
               </h3>
               <div className="flex flex-wrap gap-1.5">
                 {data.next_round_prediction.map((pred: string, i: number) => (
                   <span
                     key={i}
-                    className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs text-blue-700"
+                    className="rounded-full bg-info-bg px-2.5 py-0.5 text-xs text-info-text"
                   >
                     {pred}
                   </span>
@@ -721,7 +680,7 @@ function BriefModal({
           <div className="flex justify-end gap-2 pt-2">
             <Link
               href={`/company/${companyId}/prep?round=${data.next_round}`}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-text-inverse hover:bg-brand-hover"
             >
               <Lightbulb className="h-4 w-4" />
               生成备战计划
@@ -742,18 +701,18 @@ function RejectionModal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-overlay backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-lg"
+        className="w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">拒绝分析</h2>
+          <h2 className="text-lg font-semibold text-text-primary">拒绝分析</h2>
           <button
             onClick={onClose}
-            className="rounded-md p-1 text-slate-400 hover:bg-slate-100"
+            className="rounded-md p-1 text-text-muted hover:bg-surface-secondary"
           >
             <X className="h-4 w-4" />
           </button>
@@ -761,14 +720,14 @@ function RejectionModal({
 
         <div className="space-y-4">
           {data.encouragement && (
-            <p className="text-sm text-slate-600 italic">
+            <p className="text-sm text-text-secondary italic">
               {data.encouragement}
             </p>
           )}
 
           {data.likely_reasons.length > 0 && (
             <div>
-              <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-red-700">
+              <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-error-text">
                 <AlertTriangle className="h-4 w-4" />
                 可能原因
               </h3>
@@ -776,7 +735,7 @@ function RejectionModal({
                 {data.likely_reasons.map((reason: string, i: number) => (
                   <div
                     key={i}
-                    className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"
+                    className="rounded-md bg-error-bg px-3 py-2 text-sm text-error-text"
                   >
                     {reason}
                   </div>
@@ -787,7 +746,7 @@ function RejectionModal({
 
           {data.next_focus.length > 0 && (
             <div>
-              <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+              <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-text-primary">
                 <Target className="h-4 w-4" />
                 下一步重点
               </h3>
@@ -795,7 +754,7 @@ function RejectionModal({
                 {data.next_focus.map((wp: string, i: number) => (
                   <span
                     key={i}
-                    className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs text-amber-700"
+                    className="rounded-full bg-warning-bg px-2.5 py-0.5 text-xs text-warning-text"
                   >
                     {wp}
                   </span>
@@ -806,7 +765,7 @@ function RejectionModal({
 
           {data.strengths_to_keep.length > 0 && (
             <div>
-              <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-green-700">
+              <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-success-text">
                 <CheckCircle className="h-4 w-4" />
                 保持优势
               </h3>
@@ -814,173 +773,10 @@ function RejectionModal({
                 {data.strengths_to_keep.map((sp: string, i: number) => (
                   <span
                     key={i}
-                    className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs text-green-700"
+                    className="rounded-full bg-success-bg px-2.5 py-0.5 text-xs text-success-text"
                   >
                     {sp}
                   </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ReviewDetailModal({
-  data,
-  companyId,
-  round,
-  onClose,
-  onEdit,
-}: {
-  data: any;
-  companyId: string;
-  round: number;
-  onClose: () => void;
-  onEdit: () => void;
-}) {
-  const analysis = data.ai_analysis;
-  if (!analysis || typeof analysis !== "object") {
-    return (
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-        onClick={onClose}
-      >
-        <div
-          className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-lg"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <p className="text-center text-slate-500">暂无复盘数据</p>
-          <div className="mt-4 flex justify-center">
-            <button
-              onClick={onClose}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
-            >
-              关闭
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const questions = analysis.questions || [];
-  const weakPoints = analysis.weak_points || [];
-  const strongPoints = analysis.strong_points || [];
-  const predictions = analysis.next_round_prediction || [];
-  const signals = analysis.interviewer_signals || [];
-
-  function getScoreColor(score: number): string {
-    if (score >= 8) return "bg-green-100 text-green-700";
-    if (score >= 5) return "bg-yellow-100 text-yellow-700";
-    return "bg-red-100 text-red-700";
-  }
-
-  function getScoreIcon(score: number) {
-    if (score >= 8) return <CheckCircle className="h-4 w-4 text-green-600" />;
-    if (score >= 5) return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
-    return <XCircle className="h-4 w-4 text-red-600" />;
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">
-            第 {round} 轮复盘结果
-          </h2>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onEdit}
-              className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-              编辑
-            </button>
-            <button
-              onClick={onClose}
-              className="rounded-md p-1 text-slate-400 hover:bg-slate-100"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          {questions.length > 0 && (
-            <div>
-              <h3 className="mb-3 text-sm font-semibold text-slate-700">问题列表</h3>
-              <div className="space-y-3">
-                {questions.map((q: any, i: number) => (
-                  <div key={i} className="rounded-lg border border-slate-100 bg-slate-50 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm font-medium text-slate-900">{q.question}</p>
-                      <span className={cn("flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold", getScoreColor(q.score))}>
-                        {getScoreIcon(q.score)}
-                        {q.score}/10
-                      </span>
-                    </div>
-                    {q.your_answer_summary && (
-                      <p className="mt-2 text-xs text-slate-500">{q.your_answer_summary}</p>
-                    )}
-                    <p className="mt-2 text-sm text-slate-600">{q.assessment}</p>
-                    {q.improvement && (
-                      <p className="mt-1 text-sm text-blue-600">💡 {q.improvement}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            {weakPoints.length > 0 && (
-              <div className="rounded-xl border border-red-200 bg-red-50/50 p-4">
-                <h3 className="mb-2 text-sm font-semibold text-red-800">薄弱点</h3>
-                <div className="flex flex-wrap gap-1.5">
-                  {weakPoints.map((wp: string, i: number) => (
-                    <span key={i} className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs text-red-700">{wp}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-            {strongPoints.length > 0 && (
-              <div className="rounded-xl border border-green-200 bg-green-50/50 p-4">
-                <h3 className="mb-2 text-sm font-semibold text-green-800">优势</h3>
-                <div className="flex flex-wrap gap-1.5">
-                  {strongPoints.map((sp: string, i: number) => (
-                    <span key={i} className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs text-green-700">{sp}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {predictions.length > 0 && (
-            <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4">
-              <h3 className="mb-2 text-sm font-semibold text-blue-800">下一轮预测</h3>
-              <div className="flex flex-wrap gap-1.5">
-                {predictions.map((pred: string, i: number) => (
-                  <span key={i} className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs text-blue-700">{pred}</span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {signals.length > 0 && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
-              <h3 className="mb-2 text-sm font-semibold text-amber-800">面试官信号</h3>
-              <div className="flex flex-wrap gap-1.5">
-                {signals.map((signal: string, i: number) => (
-                  <span key={i} className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs text-amber-700">{signal}</span>
                 ))}
               </div>
             </div>

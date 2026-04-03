@@ -43,6 +43,25 @@ class Company(Base):
     prep_plans = relationship(
         "PrepPlan", back_populates="company", cascade="all, delete-orphan"
     )
+    offers = relationship(
+        "Offer", back_populates="company", cascade="all, delete-orphan"
+    )
+
+
+class Offer(Base):
+    __tablename__ = "offers"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    company_id = Column(String(36), ForeignKey("companies.id"), nullable=False)
+    salary = Column(String(255), nullable=True, default="")
+    benefits = Column(Text, nullable=True, default="")
+    offer_date = Column(Date, nullable=True)
+    deadline = Column(Date, nullable=True)
+    status = Column(String(50), nullable=False, default="pending")
+    notes = Column(Text, nullable=True, default="")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    company = relationship("Company", back_populates="offers")
 
 
 class Interview(Base):

@@ -10,10 +10,13 @@ from app.models.company import (
     CompanyResponse,
     CompanyDetail,
     InterviewBrief,
+    StatusTransitionRequest,
 )
 from app.services.company_service import CompanyService
 from app.services.profile_service import get_profile_summary
 from app.services.insight_service import analyze_rejection
+from app.services.status_service import transition_company_status
+from app.services.status_service import transition_company_status
 
 router = APIRouter(prefix="/companies", tags=["companies"])
 
@@ -146,3 +149,16 @@ def get_company_stats(company_id: str, db: Session = Depends(get_db)):
 @router.post("/{company_id}/rejection-analysis")
 def get_rejection_analysis(company_id: str, db: Session = Depends(get_db)):
     return analyze_rejection(db, company_id)
+
+
+@router.post("/{company_id}/transition", response_model=CompanyResponse)
+def transition_status(
+    company_id: str, data: StatusTransitionRequest, db: Session = Depends(get_db)
+):
+    company = transition_company_status(
+        db,
+        company_id,
+        data.new_status,
+        data.offer_data.model_dump() if data.offer_data else None,
+    )
+    return company

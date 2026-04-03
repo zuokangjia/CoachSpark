@@ -46,13 +46,22 @@
 
   /* Semantic — Info */
   --info: #2563eb;
-  --info-bg: #eff6ff;
+  --info-bg: #eef2ff;
   --info-text: #1e40af;
 
   /* Input */
   --input-bg: #ffffff;
   --input-border: #cbd5e1;
   --input-focus: #3b82f6;
+
+  /* Overlay */
+  --overlay: rgba(0, 0, 0, 0.4);
+
+  /* Semantic borders */
+  --border-success: #bbf7d0;
+  --border-warning: #fde68a;
+  --border-error: #fecaca;
+  --border-info: #bfdbfe;
 
   /* Column backgrounds (Kanban) */
   --col-applied-bg: #eff6ff;
@@ -74,33 +83,33 @@
   --background: #0a0a0a;
   --foreground: #ededed;
 
-  --surface: #111827;
-  --surface-secondary: #1f2937;
-  --surface-muted: #374151;
+  --surface: #0f172a;
+  --surface-secondary: #1e293b;
+  --surface-muted: #334155;
 
   --border: #374151;
   --border-strong: #4b5563;
 
   --text-primary: #f9fafb;
   --text-secondary: #d1d5db;
-  --text-muted: #6b7280;
+  --text-muted: #9ca3af;
   --text-inverse: #111827;
 
   --brand: #3b82f6;
   --brand-hover: #60a5fa;
-  --brand-subtle: #1e3a5f;
+  --brand-subtle: #172554;
   --brand-text: #93c5fd;
 
   --success: #22c55e;
-  --success-bg: #052e16;
+  --success-bg: #14532d;
   --success-text: #4ade80;
 
   --warning: #f59e0b;
-  --warning-bg: #451a03;
+  --warning-bg: #78350f;
   --warning-text: #fbbf24;
 
   --error: #ef4444;
-  --error-bg: #450a0a;
+  --error-bg: #7f1d1d;
   --error-text: #f87171;
 
   --info: #3b82f6;
@@ -111,15 +120,22 @@
   --input-border: #4b5563;
   --input-focus: #60a5fa;
 
-  --col-applied-bg: #1e3a5f;
-  --col-applied-border: #1e40af;
+  --overlay: rgba(0, 0, 0, 0.6);
+
+  --border-success: #22c55e;
+  --border-warning: #f59e0b;
+  --border-error: #ef4444;
+  --border-info: #3b82f6;
+
+  --col-applied-bg: #172554;
+  --col-applied-border: #1e3a8a;
   --col-applied-text: #93c5fd;
-  --col-interviewing-bg: #451a03;
-  --col-interviewing-border: #92400e;
+  --col-interviewing-bg: #422006;
+  --col-interviewing-border: #78350f;
   --col-interviewing-text: #fbbf24;
-  --col-closed-bg: #1f2937;
-  --col-closed-border: #374151;
-  --col-closed-text: #9ca3af;
+  --col-closed-bg: #162032;
+  --col-closed-border: #334155;
+  --col-closed-text: #94a3b8;
 }
 
 @theme inline {
@@ -153,6 +169,11 @@
   --color-input-bg: var(--input-bg);
   --color-input-border: var(--input-border);
   --color-input-focus: var(--input-focus);
+  --color-overlay: var(--overlay);
+  --color-border-success: var(--border-success);
+  --color-border-warning: var(--border-warning);
+  --color-border-error: var(--border-error);
+  --color-border-info: var(--border-info);
   --color-col-applied-bg: var(--col-applied-bg);
   --color-col-applied-border: var(--col-applied-border);
   --color-col-applied-text: var(--col-applied-text);

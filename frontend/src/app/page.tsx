@@ -108,7 +108,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-text-muted" />
       </div>
     );
   }
@@ -117,14 +117,14 @@ export default function DashboardPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">投递看板</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-xl font-semibold text-text-primary">投递看板</h1>
+          <p className="mt-1 text-sm text-text-secondary">
             管理你的所有投递和面试进度
           </p>
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-text-inverse hover:bg-brand-hover"
         >
           <Plus className="h-4 w-4" />
           添加流程
@@ -141,41 +141,41 @@ export default function DashboardPage() {
             icon={Building2}
             label="总投递"
             value={stats.total_companies}
-            color="text-blue-600"
-            bg="bg-blue-50"
+            color="text-info-text"
+            bg="bg-info-bg"
           />
           <StatCard
             icon={Calendar}
             label="面试中"
             value={stats.interviewing}
-            color="text-amber-600"
-            bg="bg-amber-50"
+            color="text-warning-text"
+            bg="bg-warning-bg"
           />
           <StatCard
             icon={TrendingUp}
             label="已完成"
             value={stats.closed}
-            color="text-green-600"
-            bg="bg-green-50"
+            color="text-success-text"
+            bg="bg-success-bg"
           />
           <StatCard
             icon={AlertTriangle}
             label="面试总数"
             value={stats.total_interviews}
-            color="text-purple-600"
-            bg="bg-purple-50"
+            color="text-brand-text"
+            bg="bg-brand-subtle"
           />
         </div>
       )}
 
       {stats && stats.top_weak_points.length > 0 && (
-        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
-          <h3 className="mb-2 text-sm font-semibold text-slate-700">薄弱点 TOP 5</h3>
+        <div className="mb-6 rounded-xl border border-border bg-surface p-4">
+          <h3 className="mb-2 text-sm font-semibold text-text-secondary">薄弱点 TOP 5</h3>
           <div className="flex flex-wrap gap-1.5">
             {stats.top_weak_points.map(([wp, count]) => (
               <span
                 key={wp}
-                className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs text-red-700"
+                className="inline-flex items-center gap-1 rounded-full bg-error-bg px-2.5 py-1 text-xs text-error-text"
               >
                 {wp}
                 <span className="font-semibold">{count}</span>
@@ -198,10 +198,10 @@ export default function DashboardPage() {
                 )}
               >
                 <div className="mb-3 flex items-center justify-between px-1">
-                  <h2 className="text-sm font-semibold text-slate-700">
+                  <h2 className="text-sm font-semibold text-text-secondary">
                     {col.title}
                   </h2>
-                  <span className="rounded-full bg-white/70 px-2 py-0.5 text-xs font-medium text-slate-500">
+                  <span className="rounded-full bg-surface-muted/70 px-2 py-0.5 text-xs font-medium text-text-muted">
                     {colCompanies.length}
                   </span>
                 </div>
@@ -214,6 +214,10 @@ export default function DashboardPage() {
                       <CompanyCard
                         key={company.id}
                         company={company}
+                        onStatusChanged={() => {
+                          fetchCompanies();
+                          loadStats();
+                        }}
                         onDeleted={(id) => {
                           removeCompany(id);
                           loadStats();
@@ -227,7 +231,7 @@ export default function DashboardPage() {
                   </div>
                 </SortableContext>
                 {colCompanies.length === 0 && (
-                  <div className="flex flex-1 items-center justify-center py-8 text-xs text-slate-400">
+                  <div className="flex flex-1 items-center justify-center py-8 text-xs text-text-muted">
                     暂无投递
                   </div>
                 )}
@@ -251,25 +255,25 @@ function TodayBriefingCard({ briefing }: { briefing: TodayBriefing }) {
   if (!hasItems) return null;
 
   return (
-    <div className="mb-6 rounded-xl border border-slate-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-5">
-      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
-        <Clock className="h-4 w-4 text-blue-600" />
+    <div className="mb-6 rounded-xl border border-border bg-surface p-5 shadow-sm">
+      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-text-primary">
+        <Clock className="h-4 w-4 text-brand" />
         今日提醒
       </h2>
       <div className="space-y-2">
         {briefing.upcoming_interviews.map((iv, i) => (
           <div
             key={`up-${i}`}
-            className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm"
+            className="flex items-center gap-2 rounded-lg bg-surface px-3 py-2 text-sm text-text-secondary"
           >
             <span
               className={cn(
                 "rounded-full px-2 py-0.5 text-xs font-medium",
                 iv.days_until === 0
-                  ? "bg-red-100 text-red-700"
+                  ? "bg-error-bg text-error-text"
                   : iv.days_until <= 2
-                    ? "bg-amber-100 text-amber-700"
-                    : "bg-blue-100 text-blue-700",
+                    ? "bg-warning-bg text-warning-text"
+                    : "bg-info-bg text-info-text",
               )}
             >
               {iv.days_until === 0
@@ -278,7 +282,7 @@ function TodayBriefingCard({ briefing }: { briefing: TodayBriefing }) {
                   ? "明天"
                   : `${iv.days_until} 天后`}
             </span>
-            <span className="text-slate-700">
+            <span>
               {iv.company} · {iv.position} · 第 {iv.round} 轮
             </span>
           </div>
@@ -286,10 +290,10 @@ function TodayBriefingCard({ briefing }: { briefing: TodayBriefing }) {
         {briefing.pending_results.map((pr, i) => (
           <div
             key={`pr-${i}`}
-            className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm"
+            className="flex items-center gap-2 rounded-lg bg-surface px-3 py-2 text-sm text-text-secondary"
           >
-            <AlertCircle className="h-4 w-4 shrink-0 text-amber-500" />
-            <span className="text-slate-700">
+            <AlertCircle className="h-4 w-4 shrink-0 text-warning" />
+            <span>
               {pr.company} 第 {pr.round} 轮结果已逾期 {pr.days_overdue} 天
             </span>
           </div>
@@ -297,10 +301,10 @@ function TodayBriefingCard({ briefing }: { briefing: TodayBriefing }) {
         {briefing.unreviewed.map((ur, i) => (
           <div
             key={`ur-${i}`}
-            className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm"
+            className="flex items-center gap-2 rounded-lg bg-surface px-3 py-2 text-sm text-text-secondary"
           >
-            <FileText className="h-4 w-4 shrink-0 text-slate-400" />
-            <span className="text-slate-500">
+            <FileText className="h-4 w-4 shrink-0 text-text-muted" />
+            <span className="text-text-muted">
               {ur.company} 第 {ur.round} 轮面试已过 {ur.days_since} 天未复盘
             </span>
           </div>
@@ -324,13 +328,13 @@ function StatCard({
   bg: string;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4">
+    <div className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4">
       <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg", bg)}>
         <Icon className={cn("h-5 w-5", color)} />
       </div>
       <div>
-        <p className="text-xs text-slate-500">{label}</p>
-        <p className="text-lg font-semibold text-slate-900">{value}</p>
+        <p className="text-xs text-text-secondary">{label}</p>
+        <p className="text-lg font-semibold text-text-primary">{value}</p>
       </div>
     </div>
   );

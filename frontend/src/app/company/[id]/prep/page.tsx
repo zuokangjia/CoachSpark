@@ -16,9 +16,9 @@ interface DailyTask {
 }
 
 const priorityColors: Record<string, string> = {
-  high: "bg-red-100 text-red-700",
-  medium: "bg-amber-100 text-amber-700",
-  low: "bg-green-100 text-green-700",
+  high: "bg-error-bg text-error-text",
+  medium: "bg-warning-bg text-warning-text",
+  low: "bg-success-bg text-success-text",
 };
 
 const priorityLabels: Record<string, string> = {
@@ -131,18 +131,18 @@ export default function PrepPage() {
     <div className="mx-auto max-w-3xl">
       <Link
         href={`/company/${id}`}
-        className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
+        className="mb-4 inline-flex items-center gap-1 text-sm text-text-muted hover:text-text-secondary"
       >
         <ArrowLeft className="h-4 w-4" />
         返回公司详情
       </Link>
 
-      <h1 className="mb-6 text-2xl font-bold text-slate-900">备战计划</h1>
+      <h1 className="mb-6 text-2xl font-bold text-text-primary">备战计划</h1>
 
-      <form onSubmit={handleGenerate} className="mb-8 rounded-xl border border-slate-200 bg-white p-6">
+      <form onSubmit={handleGenerate} className="mb-8 rounded-xl border border-border bg-surface p-6">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
+            <label className="mb-1 block text-sm font-medium text-text-secondary">
               可用天数
             </label>
             <input
@@ -151,13 +151,13 @@ export default function PrepPage() {
               max={60}
               value={daysAvailable}
               onChange={(e) => setDaysAvailable(Number(e.target.value))}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus"
             />
           </div>
         </div>
 
         <div className="mt-4">
-          <label className="mb-1 block text-sm font-medium text-slate-700">
+          <label className="mb-1 block text-sm font-medium text-text-secondary">
             薄弱点
           </label>
           <textarea
@@ -165,12 +165,12 @@ export default function PrepPage() {
             onChange={(e) => setWeakPoints(e.target.value)}
             rows={3}
             placeholder="逗号分隔，例如：系统设计, 并发编程, 消息队列"
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus placeholder:text-text-muted"
           />
         </div>
 
         <div className="mt-4">
-          <label className="mb-1 block text-sm font-medium text-slate-700">
+          <label className="mb-1 block text-sm font-medium text-text-secondary">
             JD 关键方向
           </label>
           <textarea
@@ -178,7 +178,7 @@ export default function PrepPage() {
             onChange={(e) => setJdDirections(e.target.value)}
             rows={3}
             placeholder="岗位描述中的核心技术方向..."
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus placeholder:text-text-muted"
           />
         </div>
 
@@ -186,7 +186,7 @@ export default function PrepPage() {
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-6 py-2.5 text-sm font-medium text-white hover:bg-amber-600 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-6 py-2.5 text-sm font-medium text-text-inverse hover:bg-brand-hover disabled:opacity-50"
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             生成计划
@@ -195,8 +195,8 @@ export default function PrepPage() {
       </form>
 
       {loading && (
-        <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-          <Loader2 className="mb-3 h-8 w-8 animate-spin text-amber-500" />
+        <div className="flex flex-col items-center justify-center py-16 text-text-muted">
+          <Loader2 className="mb-3 h-8 w-8 animate-spin text-brand" />
           <p className="text-sm">AI 正在生成你的备战计划...</p>
         </div>
       )}
@@ -206,20 +206,20 @@ export default function PrepPage() {
           {plan.map((day) => (
             <div
               key={day.day}
-              className="rounded-xl border border-slate-200 bg-white p-5"
+              className="rounded-xl border border-border bg-surface p-5"
             >
               <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-sm font-semibold text-text-inverse">
                     {day.day}
                   </span>
-                  <h3 className="text-sm font-semibold text-slate-900">
+                  <h3 className="text-sm font-semibold text-text-primary">
                     {day.focus}
                   </h3>
                 </div>
                 <span
                   className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                    priorityColors[day.priority] || "bg-slate-100 text-slate-600"
+                    priorityColors[day.priority] || "bg-surface-muted text-text-secondary"
                   }`}
                 >
                   {priorityLabels[day.priority] || day.priority}
@@ -237,7 +237,7 @@ export default function PrepPage() {
                     <li
                       key={i}
                       className={`flex items-start gap-2 rounded-md px-2 py-1.5 text-sm ${
-                        isCompleted ? "text-slate-400 line-through" : "text-slate-700"
+                        isCompleted ? "text-text-muted line-through" : "text-text-secondary"
                       }`}
                     >
                       <button
@@ -245,14 +245,14 @@ export default function PrepPage() {
                         className="mt-0.5 shrink-0"
                       >
                         {isCompleted ? (
-                          <Check className="h-4 w-4 text-green-500" />
+                          <Check className="h-4 w-4 text-success" />
                         ) : (
-                          <Circle className="h-4 w-4 text-slate-300" />
+                          <Circle className="h-4 w-4 text-text-muted" />
                         )}
                       </button>
                       <span className="flex-1">{displayTask}</span>
                       {minutes && (
-                        <span className="flex shrink-0 items-center gap-0.5 text-xs text-slate-400">
+                        <span className="flex shrink-0 items-center gap-0.5 text-xs text-text-muted">
                           <Clock className="h-3 w-3" />
                           {minutes}m
                         </span>
@@ -262,7 +262,7 @@ export default function PrepPage() {
                 })}
               </ul>
               {day.total_minutes && (
-                <div className="mt-3 flex items-center justify-end gap-1 text-xs text-slate-400">
+                <div className="mt-3 flex items-center justify-end gap-1 text-xs text-text-muted">
                   <Clock className="h-3 w-3" />
                   总计约 {day.total_minutes} 分钟
                 </div>

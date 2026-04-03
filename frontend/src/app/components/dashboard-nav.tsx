@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Sparkle, LayoutDashboard, Award, Menu, X, Sun, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeStore } from "@/lib/store/theme-store";
+import { useMounted } from "./theme-script";
 
 const navItems = [
   { href: "/", label: "投递看板", icon: LayoutDashboard, matchPattern: (path: string) => path === "/" },
@@ -16,6 +17,7 @@ export function DashboardNav() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { resolved, toggle } = useThemeStore();
+  const mounted = useMounted();
 
   return (
     <nav className="sticky top-0 z-50 border-b border-border/60 bg-surface/80 backdrop-blur-md shadow-sm">
@@ -62,12 +64,16 @@ export function DashboardNav() {
           <button
             onClick={toggle}
             className="flex h-9 w-9 items-center justify-center rounded-lg text-text-secondary hover:bg-surface-secondary hover:text-text-primary transition-colors"
-            aria-label={resolved === "dark" ? "切换为浅色模式" : "切换为深色模式"}
+            aria-label={mounted ? (resolved === "dark" ? "切换为浅色模式" : "切换为深色模式") : "切换主题"}
           >
-            {resolved === "dark" ? (
-              <Sun className="h-4 w-4" />
+            {mounted ? (
+              resolved === "dark" ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )
             ) : (
-              <Moon className="h-4 w-4" />
+              <Sun className="h-4 w-4" />
             )}
           </button>
         </div>
@@ -114,12 +120,16 @@ export function DashboardNav() {
               }}
               className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-text-secondary hover:bg-surface-secondary hover:text-text-primary transition-colors"
             >
-              {resolved === "dark" ? (
-                <Sun className="h-4 w-4" />
+              {mounted ? (
+                resolved === "dark" ? (
+                  <Sun className="h-4 w-4" />
+                ) : (
+                  <Moon className="h-4 w-4" />
+                )
               ) : (
-                <Moon className="h-4 w-4" />
+                <Sun className="h-4 w-4" />
               )}
-              {resolved === "dark" ? "浅色模式" : "深色模式"}
+              {mounted ? (resolved === "dark" ? "浅色模式" : "深色模式") : "切换主题"}
             </button>
           </div>
         </div>

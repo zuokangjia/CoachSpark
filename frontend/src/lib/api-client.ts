@@ -17,12 +17,13 @@ export const companiesApi = {
   getStats: (id: string) => api.get(`/companies/${id}/stats`),
   getBrief: (id: string, round: number) => api.get(`/companies/${id}/pre-interview-brief?round_num=${round}`),
   getRejectionAnalysis: (id: string) => api.post(`/companies/${id}/rejection-analysis`),
+  transitionStatus: (id: string, data: { new_status: string; offer_data?: any }) => api.post(`/companies/${id}/transition`, data),
 };
 
 export const interviewsApi = {
   list: (companyId: string) => api.get(`/companies/${companyId}/interviews/`),
   create: (companyId: string, data: any) => api.post(`/companies/${companyId}/interviews/`, data),
-  get: (id: string) => api.get(`/interviews/${id}`),
+  get: (companyId: string, id: string) => api.get(`/companies/${companyId}/interviews/${id}`),
 };
 
 export const matchApi = {
@@ -47,4 +48,11 @@ export const profileApi = {
 export const dashboardApi = {
   stats: () => api.get("/dashboard/stats"),
   today: () => api.get("/dashboard/today"),
+};
+
+export const offersApi = {
+  list: () => api.get("/offers/"),
+  create: (data: any) => api.post("/offers/", data),
+  update: (id: string, data: any) => api.put(`/offers/${id}`, data),
+  delete: (id: string) => api.delete(`/offers/${id}`),
 };
