@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import Base
 
-ModelType = TypeVar("ModelType", bound=Base)
+ModelType = TypeVar("Model coachspark.dbdelType", bound=Base)
 
 
 class BaseRepository(Generic[ModelType]):

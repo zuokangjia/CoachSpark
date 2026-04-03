@@ -33,6 +33,7 @@ export default function PrepPage() {
   const id = params.id as string;
 
   const [daysAvailable, setDaysAvailable] = useState(7);
+  const [targetRound, setTargetRound] = useState(1);
   const [weakPoints, setWeakPoints] = useState("");
   const [jdDirections, setJdDirections] = useState("");
   const [loading, setLoading] = useState(false);
@@ -41,7 +42,7 @@ export default function PrepPage() {
 
   useEffect(() => {
     const r = searchParams.get("round");
-    void r;
+    if (r) setTargetRound(Number(r));
     loadExistingData();
   }, [id, searchParams]);
 
@@ -93,7 +94,7 @@ export default function PrepPage() {
     try {
       const payload: Record<string, unknown> = {
         company_id: id,
-        target_round: 1,
+        target_round: targetRound,
         days_available: daysAvailable,
       };
       if (weakPoints.trim()) {

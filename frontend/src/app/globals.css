@@ -1,22 +1,140 @@
 @import "tailwindcss";
 
+/* ============================================
+   Theme Variables — Light Mode (default)
+   Override in @media (prefers-color-scheme: dark) below
+   ============================================ */
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Surface layers */
+  --surface: #ffffff;
+  --surface-secondary: #f8fafc;
+  --surface-muted: #f1f5f9;
+
+  /* Borders */
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+
+  /* Text hierarchy */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --text-inverse: #ffffff;
+
+  /* Brand */
+  --brand: #2563eb;
+  --brand-hover: #1d4ed8;
+  --brand-subtle: #eff6ff;
+  --brand-text: #1e40af;
+
+  /* Semantic — Success */
+  --success: #16a34a;
+  --success-bg: #f0fdf4;
+  --success-text: #166534;
+
+  /* Semantic — Warning */
+  --warning: #d97706;
+  --warning-bg: #fffbeb;
+  --warning-text: #92400e;
+
+  /* Semantic — Error */
+  --error: #dc2626;
+  --error-bg: #fef2f2;
+  --error-text: #991b1b;
+
+  /* Semantic — Info */
+  --info: #2563eb;
+  --info-bg: #eff6ff;
+  --info-text: #1e40af;
+
+  /* Input */
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+  --input-focus: #3b82f6;
+}
+
+/* ============================================
+   Dark Mode — System preference
+   ============================================ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+
+    --surface: #111827;
+    --surface-secondary: #1f2937;
+    --surface-muted: #374151;
+
+    --border: #374151;
+    --border-strong: #4b5563;
+
+    --text-primary: #f9fafb;
+    --text-secondary: #d1d5db;
+    --text-muted: #6b7280;
+    --text-inverse: #111827;
+
+    --brand: #3b82f6;
+    --brand-hover: #60a5fa;
+    --brand-subtle: #1e3a5f;
+    --brand-text: #93c5fd;
+
+    --success: #22c55e;
+    --success-bg: #052e16;
+    --success-text: #4ade80;
+
+    --warning: #f59e0b;
+    --warning-bg: #451a03;
+    --warning-text: #fbbf24;
+
+    --error: #ef4444;
+    --error-bg: #450a0a;
+    --error-text: #f87171;
+
+    --info: #3b82f6;
+    --info-bg: #1e3a5f;
+    --info-text: #93c5fd;
+
+    --input-bg: #1f2937;
+    --input-border: #4b5563;
+    --input-focus: #60a5fa;
+  }
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-secondary: var(--surface-secondary);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-inverse: var(--text-inverse);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-subtle: var(--brand-subtle);
+  --color-brand-text: var(--brand-text);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-success-text: var(--success-text);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-text: var(--warning-text);
+  --color-error: var(--error);
+  --color-error-bg: var(--error-bg);
+  --color-error-text: var(--error-text);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-info-text: var(--info-text);
+  --color-input-bg: var(--input-bg);
+  --color-input-border: var(--input-border);
+  --color-input-focus: var(--input-focus);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
@@ -35,6 +153,15 @@ body {
   background: transparent;
 }
 
+@media (prefers-color-scheme: dark) {
+  ::-webkit-scrollbar-thumb {
+    background: #4b5563;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #6b7280;
+  }
+}
+
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 3px;
@@ -44,18 +171,9 @@ body {
   background: #94a3b8;
 }
 
-/* Card shadow utility */
-.card-shadow {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
-}
-
-.card-shadow-hover:hover {
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06);
-}
-
-/* Smooth transitions */
+/* Smooth transitions for theme switching */
 * {
-  transition-property: background-color, border-color, box-shadow;
+  transition-property: background-color, border-color, color, box-shadow;
   transition-duration: 150ms;
   transition-timing-function: ease;
 }

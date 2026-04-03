@@ -17,11 +17,9 @@ import {
   FileText,
   ChevronRight,
   BookOpen,
-  TrendingUp,
-  TrendingDown,
-  Minus,
   Target,
   CheckCircle,
+  ChevronDown,
 } from "lucide-react";
 import { companiesApi, interviewsApi } from "@/lib/api-client";
 import { formatDate, cn } from "@/lib/utils";
@@ -72,13 +70,15 @@ interface ChainData {
 const statusColors: Record<string, string> = {
   applied: "bg-blue-100 text-blue-700",
   interviewing: "bg-amber-100 text-amber-700",
-  closed: "bg-slate-100 text-slate-600",
+  passed: "bg-green-100 text-green-700",
+  rejected: "bg-red-100 text-red-700",
 };
 
 const statusLabels: Record<string, string> = {
   applied: "已投递",
   interviewing: "面试中",
-  closed: "已结束",
+  passed: "已通过",
+  rejected: "被拒绝",
 };
 
 const formatIcons: Record<string, typeof Phone> = {
@@ -92,7 +92,6 @@ export default function CompanyDetailPage() {
   const id = params.id as string;
 
   const [company, setCompany] = useState<Company | null>(null);
-  const [interviews, setInterviews] = useState<Interview[]>([]);
   const [chain, setChain] = useState<ChainData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAddInterview, setShowAddInterview] = useState(false);
@@ -100,30 +99,44 @@ export default function CompanyDetailPage() {
   const [briefData, setBriefData] = useState<any>(null);
   const [showRejection, setShowRejection] = useState(false);
   const [rejectionData, setRejectionData] = useState<any>(null);
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState(false);
 
   useEffect(() => {
-    loadCompany();
+    loadData();
   }, [id]);
 
-  async function loadCompany() {
+  async function loadData() {
     setLoading(true);
     try {
-      const [companyRes, interviewsRes, chainRes] = await Promise.all([
+      const [companyRes, chainRes] = await Promise.all([
         companiesApi.get(id),
-        interviewsApi.list(id),
         companiesApi.getChain(id),
       ]);
       setCompany(companyRes.data);
-      setInterviews(
-        interviewsRes.data.sort(
-          (a: Interview, b: Interview) => a.round - b.round,
-        ),
-      );
       setChain(chainRes.data);
     } catch {
       alert("加载失败");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function updateStatus(newStatus: string) {
+    setStatusUpdating(true);
+    try {
+      await companiesApi.update(id, { status: newStatus });
+      setCompany((prev) => (prev ? { ...prev, status: newStatus } : null));
+      setShowStatusMenu(false);
+      if (newStatus === "rejected") {
+        const res = await companiesApi.getRejectionAnalysis(id);
+        setRejectionData(res.data);
+        setShowRejection(true);
+      }
+    } catch {
+      alert("状态更新失败");
+    } finally {
+      setStatusUpdating(false);
     }
   }
 
@@ -136,6 +149,8 @@ export default function CompanyDetailPage() {
   }
 
   if (!company) return null;
+
+  const totalRounds = chain?.rounds.length ?? 0;
 
   return (
     <div>
@@ -153,14 +168,53 @@ export default function CompanyDetailPage() {
             <h1 className="text-2xl font-bold text-slate-900">{company.name}</h1>
             <p className="mt-1 text-slate-500">{company.position}</p>
           </div>
-          <span
-            className={cn(
-              "rounded-full px-3 py-1 text-xs font-medium",
-              statusColors[company.status] || "bg-slate-100 text-slate-600",
+
+          <div className="relative">
+            <button
+              onClick={() => setShowStatusMenu(!showStatusMenu)}
+              disabled={statusUpdating}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                statusColors[company.status] || "bg-slate-100 text-slate-600",
+              )}
+            >
+              {statusLabels[company.status] || company.status}
+              <ChevronDown className="h-3 w-3" />
+            </button>
+
+            {showStatusMenu && (
+              <div className="absolute right-0 z-50 mt-1 w-40 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                {(["applied", "interviewing", "passed", "rejected"] as const).map(
+                  (s) => (
+                    <button
+                      key={s}
+                      onClick={() => updateStatus(s)}
+                      className={cn(
+                        "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-slate-50",
+                        company.status === s
+                          ? "font-medium text-slate-900"
+                          : "text-slate-600",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "h-2 w-2 rounded-full",
+                          s === "applied"
+                            ? "bg-blue-500"
+                            : s === "interviewing"
+                              ? "bg-amber-500"
+                              : s === "passed"
+                                ? "bg-green-500"
+                                : "bg-red-500",
+                        )}
+                      />
+                      {statusLabels[s]}
+                    </button>
+                  ),
+                )}
+              </div>
             )}
-          >
-            {statusLabels[company.status] || company.status}
-          </span>
+          </div>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-500">
@@ -170,6 +224,10 @@ export default function CompanyDetailPage() {
               投递日期: {formatDate(company.applied_date)}
             </span>
           )}
+          <span className="flex items-center gap-1">
+            <FileText className="h-4 w-4" />
+            面试轮次: {totalRounds}
+          </span>
           {company.next_event_date && (
             <span className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
@@ -179,7 +237,7 @@ export default function CompanyDetailPage() {
           )}
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4">
           <button
             onClick={() => setShowAddInterview(true)}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
@@ -187,23 +245,6 @@ export default function CompanyDetailPage() {
             <Plus className="h-4 w-4" />
             添加面试
           </button>
-          {company.status === "closed" && (
-            <button
-              onClick={async () => {
-                try {
-                  const res = await companiesApi.getRejectionAnalysis(id);
-                  setRejectionData(res.data);
-                  setShowRejection(true);
-                } catch {
-                  alert("分析失败");
-                }
-              }}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50"
-            >
-              <AlertTriangle className="h-4 w-4" />
-              拒绝分析
-            </button>
-          )}
         </div>
       </div>
 
@@ -241,13 +282,15 @@ export default function CompanyDetailPage() {
 
       <div className="rounded-xl border border-slate-200 bg-white p-6">
         <h2 className="mb-4 text-lg font-semibold text-slate-900">面试链</h2>
-        {interviews.length === 0 ? (
-          <p className="py-8 text-center text-sm text-slate-400">
-            暂无面试记录，点击上方&quot;添加面试&quot;开始记录
-          </p>
+        {!chain || chain.rounds.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+            <Calendar className="mb-3 h-10 w-10 text-slate-300" />
+            <p className="text-sm">暂无面试记录</p>
+            <p className="mt-1 text-xs">点击上方&quot;添加面试&quot;开始记录</p>
+          </div>
         ) : (
           <div className="space-y-3">
-            {chain?.rounds.map((round) => {
+            {chain.rounds.map((round) => {
               const FormatIcon = formatIcons[round.format || ""] || Calendar;
               const hasAnalysis = round.questions_count > 0;
               return (
@@ -269,7 +312,7 @@ export default function CompanyDetailPage() {
                           {round.format || "—"}
                         </span>
                         {hasAnalysis && (
-                          <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] text-green-700">
+                          <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700">
                             已复盘
                           </span>
                         )}
@@ -319,7 +362,10 @@ export default function CompanyDetailPage() {
                       <button
                         onClick={async () => {
                           try {
-                            const res = await companiesApi.getBrief(id, round.round);
+                            const res = await companiesApi.getBrief(
+                              id,
+                              round.round,
+                            );
                             setBriefData(res.data);
                             setShowBrief(true);
                           } catch {
@@ -351,7 +397,7 @@ export default function CompanyDetailPage() {
         <AddInterviewModal
           companyId={id}
           onClose={() => setShowAddInterview(false)}
-          onAdded={loadCompany}
+          onAdded={loadData}
         />
       )}
 
@@ -359,14 +405,20 @@ export default function CompanyDetailPage() {
         <BriefModal
           data={briefData}
           companyId={id}
-          onClose={() => { setShowBrief(false); setBriefData(null); }}
+          onClose={() => {
+            setShowBrief(false);
+            setBriefData(null);
+          }}
         />
       )}
 
       {showRejection && rejectionData && (
         <RejectionModal
           data={rejectionData}
-          onClose={() => { setShowRejection(false); setRejectionData(null); }}
+          onClose={() => {
+            setShowRejection(false);
+            setRejectionData(null);
+          }}
         />
       )}
     </div>
@@ -398,7 +450,8 @@ function AddInterviewModal({
       if (interviewDate) payload.interview_date = interviewDate;
       if (interviewer.trim()) payload.interviewer = interviewer.trim();
       if (notes.trim()) payload.raw_notes = notes.trim();
-      if (expectedResultDate) payload.expected_result_date = expectedResultDate;
+      if (expectedResultDate)
+        payload.expected_result_date = expectedResultDate;
       await interviewsApi.create(companyId, payload);
       onAdded();
       onClose();
@@ -568,35 +621,46 @@ function BriefModal({
 
           {data.previous_weak_points.length > 0 && (
             <div>
-              <h3 className="mb-2 text-sm font-semibold text-slate-700">薄弱点回顾</h3>
+              <h3 className="mb-2 text-sm font-semibold text-slate-700">
+                薄弱点回顾
+              </h3>
               <div className="space-y-1.5">
-                {data.previous_weak_points.map((wp: any, i: number) => (
-                  <div key={i} className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2 text-sm">
-                    <span className="text-slate-700">{wp.point}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-500">出现 {wp.count} 次</span>
-                      <span
-                        className={cn(
-                          "rounded-full px-2 py-0.5 text-xs font-medium",
-                          wp.avg_score >= 7
-                            ? "bg-green-100 text-green-700"
-                            : wp.avg_score >= 5
-                              ? "bg-amber-100 text-amber-700"
-                              : "bg-red-100 text-red-700",
-                        )}
-                      >
-                        {wp.avg_score}/10
-                      </span>
+                {data.previous_weak_points.map(
+                  (wp: { point: string; count: number; avg_score: number }, i: number) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2 text-sm"
+                    >
+                      <span className="text-slate-700">{wp.point}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-500">
+                          出现 {wp.count} 次
+                        </span>
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-xs font-medium",
+                            wp.avg_score >= 7
+                              ? "bg-green-100 text-green-700"
+                              : wp.avg_score >= 5
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-red-100 text-red-700",
+                          )}
+                        >
+                          {wp.avg_score}/10
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ),
+                )}
               </div>
             </div>
           )}
 
           {data.next_round_prediction.length > 0 && (
             <div>
-              <h3 className="mb-2 text-sm font-semibold text-slate-700">下一轮预测</h3>
+              <h3 className="mb-2 text-sm font-semibold text-slate-700">
+                下一轮预测
+              </h3>
               <div className="flex flex-wrap gap-1.5">
                 {data.next_round_prediction.map((pred: string, i: number) => (
                   <span
@@ -653,7 +717,9 @@ function RejectionModal({
 
         <div className="space-y-4">
           {data.encouragement && (
-            <p className="text-sm text-slate-600 italic">{data.encouragement}</p>
+            <p className="text-sm text-slate-600 italic">
+              {data.encouragement}
+            </p>
           )}
 
           {data.likely_reasons.length > 0 && (
@@ -664,7 +730,10 @@ function RejectionModal({
               </h3>
               <div className="space-y-1.5">
                 {data.likely_reasons.map((reason: string, i: number) => (
-                  <div key={i} className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+                  <div
+                    key={i}
+                    className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"
+                  >
                     {reason}
                   </div>
                 ))}

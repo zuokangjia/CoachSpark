@@ -14,7 +14,7 @@ import {
   FileText,
   ListTodo,
 } from "lucide-react";
-import { reviewApi } from "@/lib/api-client";
+import { reviewApi, interviewsApi } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 interface ReviewQuestion {
@@ -76,12 +76,23 @@ export default function ReviewPage() {
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ReviewResult | null>(null);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     const iid = searchParams.get("interview_id");
     const r = searchParams.get("round");
-    if (iid) setExistingInterviewId(iid);
     if (r) setRound(Number(r));
+    if (iid) {
+      setExistingInterviewId(iid);
+      interviewsApi.get(iid).then((res) => {
+        const iv = res.data;
+        if (iv.interview_date) setInterviewDate(iv.interview_date);
+        if (iv.format) setInterviewFormat(iv.format);
+        if (iv.interviewer) setInterviewerName(iv.interviewer);
+        if (iv.raw_notes) setNotes(iv.raw_notes);
+        if (iv.round) setRound(iv.round);
+      }).catch(() => {});
+    }
   }, [searchParams]);
 
   function addEntry() {
@@ -148,6 +159,7 @@ export default function ReviewPage() {
 
       const res = await reviewApi.analyze(payload);
       setResult(res.data);
+      setSaved(true);
     } catch {
       alert("分析失败，请重试");
     } finally {
@@ -492,6 +504,27 @@ export default function ReviewPage() {
                     {signal}
                   </span>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {saved && (
+            <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-center">
+              <CheckCircle className="mx-auto mb-2 h-6 w-6 text-green-600" />
+              <p className="text-sm font-medium text-green-800">复盘已保存</p>
+              <div className="mt-3 flex justify-center gap-2">
+                <Link
+                  href={`/company/${id}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-green-300 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-100"
+                >
+                  返回公司详情
+                </Link>
+                <Link
+                  href={`/company/${id}/prep`}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600"
+                >
+                  生成备战计划
+                </Link>
               </div>
             </div>
           )}
