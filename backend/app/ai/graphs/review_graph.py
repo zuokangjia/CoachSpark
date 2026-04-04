@@ -33,7 +33,7 @@ def extract_questions(state: ReviewState) -> dict:
         [
             (
                 "system",
-                "Extract all interview questions mentioned in these notes. Return a JSON array of objects with 'question' and 'your_answer_summary' fields. If a question is mentioned but the answer is unclear, set your_answer_summary to an empty string.",
+                "从以下面试笔记中提取所有提到的面试问题和候选人的回答。返回 JSON 数组，每项包含 'question'（面试问题）和 'your_answer_summary'（候选人回答摘要）。如果提到了问题但回答不清楚，your_answer_summary 设为空字符串。使用中文。",
             ),
             ("human", "{raw_notes}"),
         ]
@@ -58,11 +58,11 @@ def batch_score_answers(state: ReviewState) -> dict:
         [
             (
                 "system",
-                f"You are a senior technical interviewer. Score each answer from 1-10.{SCORING_RUBRIC}\n\nReturn a JSON array of objects with 'score' (int), 'assessment' (reason, 1-2 sentences), and 'improvement' (specific actionable suggestion). Match the order of the input questions.",
+                f"你是资深技术面试官。为以下每道回答打分（1-10 分）。{SCORING_RUBRIC}\n\n返回 JSON 数组，每项包含 'score'（整数）、'assessment'（评分理由，1-2 句话）和 'improvement'（具体可执行的改进建议）。保持与输入问题的顺序一致。使用中文。",
             ),
             (
                 "human",
-                "JD Context: {jd_context}\n\nQuestions to score:\n{questions}",
+                "JD 背景：{jd_context}\n\n需要评分的问题：\n{questions}",
             ),
         ]
     )
@@ -144,7 +144,51 @@ def generate_insights(state: ReviewState) -> dict:
 
 
 def predict_next_round(state: ReviewState) -> dict:
-    return {}
+    existing_prediction = state.get("next_round_prediction", [])
+    if existing_prediction:
+        return {"next_round_prediction": existing_prediction}
+
+    weak_points = state.get("weak_points", [])
+    questions = state.get("questions", [])
+    low_scored = [
+        q.get("question", "")
+        for q in questions
+        if isinstance(q, dict)
+        and isinstance(q.get("score"), (int, float))
+        and q["score"] <= 5
+    ]
+
+    if not weak_points and not low_scored:
+        return {"next_round_prediction": []}
+
+    llm = get_llm()
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "你是资深技术面试官。基于候选人的薄弱点和本轮低分问题，预测下一轮面试最可能被问到的话题。考虑面试官通常会针对候选人薄弱的领域深入追问。返回 3-5 个具体的话题预测。使用中文。",
+            ),
+            (
+                "human",
+                "薄弱点：\n{weak_points}\n\n低分问题（≤5 分）：\n{low_scored}",
+            ),
+        ]
+    )
+    chain = prompt | llm | JsonOutputParser()
+    try:
+        result = chain.invoke(
+            {
+                "weak_points": "\n".join(f"- {wp}" for wp in weak_points),
+                "low_scored": "\n".join(f"- {q}" for q in low_scored)
+                if low_scored
+                else "None",
+            }
+        )
+        predictions = result if isinstance(result, list) else []
+    except Exception:
+        predictions = []
+
+    return {"next_round_prediction": predictions}
 
 
 def validate_output(state: ReviewState) -> dict:

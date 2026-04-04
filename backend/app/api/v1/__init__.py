@@ -9,6 +9,7 @@ from app.api.v1 import profile
 from app.api.v1 import dashboard
 from app.api.v1 import company_brief
 from app.api.v1 import offers
+from app.api.v1 import resume
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(companies.router)
@@ -20,3 +21,4 @@ api_router.include_router(profile.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(company_brief.router)
 api_router.include_router(offers.router)
+api_router.include_router(resume.router)

@@ -96,6 +96,24 @@ class PrepPlan(Base):
     company = relationship("Company", back_populates="prep_plans")
 
 
+class Resume(Base):
+    __tablename__ = "resume"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    full_name = Column(String(100), nullable=True, default="")
+    phone = Column(String(50), nullable=True, default="")
+    email = Column(String(255), nullable=True, default="")
+    summary = Column(Text, nullable=True, default="")
+    skills = Column(JSON, nullable=False, default=list)
+    education = Column(JSON, nullable=False, default=list)
+    work_experience = Column(JSON, nullable=False, default=list)
+    projects = Column(JSON, nullable=False, default=list)
+    certifications = Column(JSON, nullable=False, default=list)
+    updated_at = Column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+
 class UserProfile(Base):
     __tablename__ = "user_profile"
 

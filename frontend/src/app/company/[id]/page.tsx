@@ -64,6 +64,9 @@ interface ChainData {
     weak_points: string[];
     strong_points: string[];
     questions_count: number;
+    avg_score: number;
+    next_round_prediction: string[];
+    interviewer_signals: string[];
   }>;
   weak_point_tracking: WeakPointTracking;
 }
@@ -301,6 +304,16 @@ export default function CompanyDetailPage() {
                             已复盘
                           </span>
                         )}
+                        {round.avg_score > 0 && (
+                          <span className={cn(
+                            "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                            round.avg_score >= 8 ? "bg-success-bg text-success-text"
+                              : round.avg_score >= 5 ? "bg-warning-bg text-warning-text"
+                              : "bg-error-bg text-error-text",
+                          )}>
+                            均分 {round.avg_score}
+                          </span>
+                        )}
                       </div>
                       <div className="mt-1 text-xs text-text-secondary">
                         {round.interview_date && (
@@ -308,6 +321,9 @@ export default function CompanyDetailPage() {
                         )}
                         {round.interviewer && (
                           <span className="ml-2">· {round.interviewer}</span>
+                        )}
+                        {round.questions_count > 0 && (
+                          <span className="ml-2">· {round.questions_count} 题</span>
                         )}
                       </div>
                       {round.weak_points.length > 0 && (
@@ -332,6 +348,34 @@ export default function CompanyDetailPage() {
                               {sp}
                             </span>
                           ))}
+                        </div>
+                      )}
+                      {round.next_round_prediction.length > 0 && (
+                        <div className="mt-2 rounded-md bg-info-bg/50 px-2 py-1.5">
+                          <div className="mb-1 flex items-center gap-1 text-[10px] font-medium text-info-text">
+                            <Target className="h-3 w-3" />
+                            下一轮预测
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {round.next_round_prediction.map((pred, i) => (
+                              <span key={i} className="rounded bg-info-bg px-1.5 py-0.5 text-[10px] text-info-text">
+                                {pred}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {round.interviewer_signals.length > 0 && (
+                        <div className="mt-1.5 rounded-md bg-warning-bg/50 px-2 py-1.5">
+                          <div className="mb-1 flex items-center gap-1 text-[10px] font-medium text-warning-text">
+                            <AlertTriangle className="h-3 w-3" />
+                            面试官信号
+                          </div>
+                          <div className="space-y-0.5">
+                            {round.interviewer_signals.map((signal, i) => (
+                              <div key={i} className="text-[10px] text-warning-text">{signal}</div>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>

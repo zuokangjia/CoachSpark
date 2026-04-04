@@ -10,7 +10,7 @@ from datetime import date, timedelta
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app.db.session import SessionLocal, engine, Base
-from app.db.models import Company, Interview, generate_uuid
+from app.db.models import Company, Interview, UserProfile, Resume, generate_uuid
 
 Base.metadata.create_all(bind=engine)
 db = SessionLocal()
@@ -25,6 +25,136 @@ def add_iv(**kwargs):
 
 def create_test_data():
     try:
+        resume = Resume(
+            id=generate_uuid(),
+            full_name="张三",
+            phone="138-0000-0000",
+            email="zhangsan@example.com",
+            summary="5 年前端开发经验，专注于 React 生态和大型应用架构设计。主导过多个从 0 到 1 的项目，擅长性能优化和工程化体系建设。",
+            skills=[
+                "React",
+                "TypeScript",
+                "JavaScript",
+                "Node.js",
+                "Vue.js",
+                "Webpack",
+                "Vite",
+                "HTML/CSS",
+                "Redux",
+                "GraphQL",
+                "PostgreSQL",
+                "Docker",
+                "CI/CD",
+            ],
+            education=[
+                {
+                    "school": "浙江大学",
+                    "degree": "硕士",
+                    "major": "计算机科学与技术",
+                    "start_date": "2016-09",
+                    "end_date": "2019-06",
+                    "description": "GPA 3.7/4.0，研究方向：Web 性能优化",
+                },
+                {
+                    "school": "华中科技大学",
+                    "degree": "本科",
+                    "major": "软件工程",
+                    "start_date": "2012-09",
+                    "end_date": "2016-06",
+                    "description": "",
+                },
+            ],
+            work_experience=[
+                {
+                    "company": "某互联网公司",
+                    "position": "高级前端工程师",
+                    "start_date": "2021-07",
+                    "end_date": "至今",
+                    "description": "负责核心业务线前端架构设计与性能优化。主导微前端迁移，将单体应用拆分为 5 个独立子应用。建设前端监控体系，FCP 从 2.8s 优化至 1.2s。",
+                    "technologies": "React, TypeScript, Webpack, Module Federation, Node.js",
+                },
+                {
+                    "company": "某创业公司",
+                    "position": "前端工程师",
+                    "start_date": "2019-07",
+                    "end_date": "2021-06",
+                    "description": "参与 SaaS 平台从 0 到 1 开发，负责数据可视化和表单引擎模块。",
+                    "technologies": "Vue.js, ECharts, Element UI, Python",
+                },
+            ],
+            projects=[
+                {
+                    "name": "低代码平台",
+                    "description": "内部低代码开发平台，支持拖拽式页面搭建和自定义 DSL。",
+                    "role": "核心开发",
+                    "start_date": "2022-03",
+                    "end_date": "2023-01",
+                    "technologies": "React, TypeScript, JSON Schema, Monaco Editor",
+                    "achievements": "运营活动页面搭建效率提升 60%，月活用户 200+",
+                },
+                {
+                    "name": "前端监控 SDK",
+                    "description": "自研前端性能监控和错误追踪 SDK，覆盖 PV/UV、FCP/LCP、JS 错误、API 异常。",
+                    "role": "负责人",
+                    "start_date": "2022-06",
+                    "end_date": "2022-09",
+                    "technologies": "TypeScript, Performance API, Beacon API",
+                    "achievements": "接入 12 个业务线，日均上报 500 万条数据",
+                },
+            ],
+            certifications=["AWS Cloud Practitioner"],
+        )
+        db.add(resume)
+
+        profile = UserProfile(
+            id=generate_uuid(),
+            skills=[
+                "React",
+                "TypeScript",
+                "JavaScript",
+                "Node.js",
+                "Webpack",
+                "性能优化",
+                "系统设计",
+            ],
+            weak_points={
+                "React Diff algorithm": {
+                    "count": 2,
+                    "avg_score": 5.0,
+                    "first_seen": "2026-03-15",
+                    "last_seen": "2026-03-23",
+                    "trend": "stable",
+                    "rounds": [1, 2],
+                },
+                "System Design": {
+                    "count": 1,
+                    "avg_score": 5.0,
+                    "first_seen": "2026-03-23",
+                    "last_seen": "2026-03-23",
+                    "trend": "new",
+                    "rounds": [2],
+                },
+                "CSS fundamentals": {
+                    "count": 1,
+                    "avg_score": 6.0,
+                    "first_seen": "2026-03-25",
+                    "last_seen": "2026-03-25",
+                    "trend": "new",
+                    "rounds": [1],
+                },
+            },
+            strong_points=[
+                "React Hooks",
+                "Project architecture",
+                "State management",
+                "Clear communication",
+            ],
+            career_direction="前端架构 / 技术专家",
+            interview_count=8,
+            offer_count=1,
+        )
+        db.add(profile)
+
         companies = []
 
         # 1. Google - Frontend Engineer (tomorrow round 2)

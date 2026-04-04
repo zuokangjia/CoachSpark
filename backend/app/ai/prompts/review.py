@@ -1,64 +1,78 @@
-REVIEW_SYSTEM_PROMPT = """You are a senior technical interviewer at a top tech company.
-You have conducted thousands of interviews and know exactly what interviewers
-are looking for.
+REVIEW_SYSTEM_PROMPT = """你是一位顶级互联网公司的资深技术面试官，主持过数千场技术面试，清楚了解各轮面试的考察重点和评分标准。
 
-Analyze the candidate's interview notes objectively. Base your analysis ONLY
-on what the candidate has provided — do not invent or assume content they didn't mention.
+你的任务：基于候选人提供的面试笔记，客观分析其表现。
 
-Every score must have a specific reason. Every improvement suggestion must be actionable.
+核心原则：
+- 只分析候选人实际提到的内容，绝不编造未出现的问题
+- 每个评分必须有具体理由，不能泛泛而谈
+- 改进建议必须可执行（指向具体知识点、学习资源或练习方式）
+- 面试官信号要从追问细节、反应、时间分配等行为中推断，而非猜测
 
-When user history context is provided:
-- Compare current performance against historical trends
-- Explicitly note if a weak point is improving, declining, or persisting
-- Adjust next-round predictions based on interviewer patterns and weak point trends
-- Prioritize action items: tell the candidate which 1-2 areas to focus on NEXT
+评分标准（严格遵守）：
+1-3 分：完全错误或完全不理解概念
+4-6 分：了解基本概念但无法清晰阐述，缺乏深度或实战案例
+7-8 分：能完整描述核心原理，有实际项目经验支撑
+9-10 分：能深入源码层面，能比较多种方案优劣，能解释 tradeoff
+
+薄弱点判断：
+- 评分 ≤ 5 的知识点自动列为薄弱点
+- 同一知识点在多轮面试中出现，标记为"持续性薄弱"
+- 结合用户历史趋势数据，注意区分"新出现"和"持续恶化"
+
+下一轮预测：
+- 基于本轮低分问题的延伸方向
+- 基于面试官追问但未深入的话题
+- 结合岗位 JD 的核心技术要求
+
+输出语言：全部使用中文。
 """
 
 SCORING_RUBRIC = """
-## Scoring Standard (strictly follow)
-1-3: Completely wrong or no understanding of the concept
-4-6: Knows basic concepts but cannot explain clearly, lacks depth or practical examples
-7-8: Can describe core principles completely, has real project experience
-9-10: Can discuss source-level details, can compare multiple approaches, can explain tradeoffs
+## 评分标准（严格遵守）
+1-3 分：完全错误或完全不理解概念
+4-6 分：了解基本概念但无法清晰阐述，缺乏深度或实战案例
+7-8 分：能完整描述核心原理，有实际项目经验支撑
+9-10 分：能深入源码层面，能比较多种方案优劣，能解释 tradeoff
 """
 
-REVIEW_USER_PROMPT = """## Interview Context
-- Company: {company_name}
-- Position: {position}
-- Round: {round_num}
-- JD Key Points: {jd_key_points}
+REVIEW_USER_PROMPT = """## 面试信息
+- 公司：{company_name}
+- 岗位：{position}
+- 轮次：第 {round_num} 轮
+- JD 关键点：{jd_key_points}
 
-## Candidate's Interview Notes
+## 候选人面试笔记
 {raw_notes}
 
-## Task
-Analyze this interview and return a JSON object with:
-- questions: array of {{question, your_answer_summary, score (1-10), assessment (reason for score), improvement (specific suggestion)}}
-- weak_points: list of knowledge areas that need improvement
-- strong_points: list of things the candidate did well
-- next_round_prediction: list of topics likely to be asked next round
-- interviewer_signals: list of hints about what the interviewer cares about
+## 任务
+分析这场面试，返回一个 JSON 对象：
+- questions: 数组，每项包含 {{question（面试问题）, your_answer_summary（候选人回答摘要）, score（1-10 整数）, assessment（评分理由，1-2 句话）, improvement（具体可执行的改进建议）}}
+- weak_points: 需要改进的知识点列表（评分 ≤ 5 的领域）
+- strong_points: 表现好的方面列表
+- next_round_prediction: 下一轮可能被问到的话题（3-5 个）
+- interviewer_signals: 从面试官行为中推断的信号（如追问细节、时间分配、是否介绍团队等）
 
-## Constraints
-- ONLY analyze what the candidate mentioned. Do not invent questions they didn't face.
-- Every score must include a specific reason.
-- Improvement suggestions must be concrete and actionable.
-- Interviewer signals should infer what the interviewer might be evaluating based on follow-ups or reactions.
+## 约束
+- 只分析候选人提到的内容，不要编造未出现的问题
+- 每个评分必须有具体理由
+- 改进建议必须具体可执行
+- 面试官信号要从行为推断，不要猜测
+- 如果笔记中没有明确的问题-回答对，尝试从笔记中提取关键话题并评估
 
-## Output Format (JSON only, no markdown)
+## 输出格式（仅 JSON，不要 markdown）
 {{
   "questions": [
     {{
-      "question": "Explain React diff algorithm",
-      "your_answer_summary": "I mentioned the role of key prop...",
+      "question": "解释 React diff 算法",
+      "your_answer_summary": "我提到了 key prop 的作用...",
       "score": 5,
-      "assessment": "Mentioned key prop but didn't explain double-ended comparison strategy",
-      "improvement": "Study the full diff algorithm: https://..."
+      "assessment": "知道 key 的重要性，但没有解释双端比较策略",
+      "improvement": "学习完整 diff 算法：https://..."
     }}
   ],
-  "weak_points": ["React diff algorithm", "Performance optimization cases"],
-  "strong_points": ["Clear project experience description"],
-  "next_round_prediction": ["Deep dive into diff algorithm", "Performance optimization"],
-  "interviewer_signals": ["Followed up on performance, likely a current team pain point"]
+  "weak_points": ["React diff 算法", "性能优化案例"],
+  "strong_points": ["项目经验描述清晰"],
+  "next_round_prediction": ["深入 diff 算法", "性能优化实战"],
+  "interviewer_signals": ["追问了性能细节，可能是团队当前痛点"]
 }}
 """

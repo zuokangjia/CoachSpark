@@ -89,6 +89,16 @@ def get_interview_chain(company_id: str, db: Session = Depends(get_db)):
 
     for iv in interviews:
         analysis = iv.ai_analysis if isinstance(iv.ai_analysis, dict) else {}
+        questions = analysis.get("questions", [])
+        avg_score = 0
+        if questions:
+            scores = [
+                q.get("score", 0)
+                for q in questions
+                if isinstance(q, dict) and isinstance(q.get("score"), (int, float))
+            ]
+            avg_score = round(sum(scores) / len(scores), 1) if scores else 0
+
         round_data = {
             "id": iv.id,
             "round": iv.round,
@@ -97,7 +107,10 @@ def get_interview_chain(company_id: str, db: Session = Depends(get_db)):
             "interviewer": iv.interviewer,
             "weak_points": analysis.get("weak_points", []),
             "strong_points": analysis.get("strong_points", []),
-            "questions_count": len(analysis.get("questions", [])),
+            "questions_count": len(questions),
+            "avg_score": avg_score,
+            "next_round_prediction": analysis.get("next_round_prediction", []),
+            "interviewer_signals": analysis.get("interviewer_signals", []),
         }
         rounds.append(round_data)
 

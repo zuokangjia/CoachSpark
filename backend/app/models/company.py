@@ -96,7 +96,12 @@ class InterviewResponse(BaseModel):
 
 class MatchRequest(BaseModel):
     jd_text: str = Field(..., description="Full job description text")
-    resume_text: str = Field(..., description="Resume text")
+    resume_text: str = Field(
+        "", description="Resume text (empty if using stored resume)"
+    )
+    use_stored_resume: bool = Field(
+        False, description="Use stored resume from database"
+    )
 
 
 class MatchResponse(BaseModel):
@@ -204,3 +209,72 @@ class TransitionOfferData(BaseModel):
 class StatusTransitionRequest(BaseModel):
     new_status: str
     offer_data: Optional[TransitionOfferData] = None
+
+
+class EducationEntry(BaseModel):
+    school: str = ""
+    degree: str = ""
+    major: str = ""
+    start_date: Optional[str] = ""
+    end_date: Optional[str] = ""
+    description: str = ""
+
+
+class WorkExperienceEntry(BaseModel):
+    company: str = ""
+    position: str = ""
+    start_date: Optional[str] = ""
+    end_date: Optional[str] = ""
+    description: str = ""
+    technologies: str = ""
+
+
+class ProjectEntry(BaseModel):
+    name: str = ""
+    description: str = ""
+    role: str = ""
+    start_date: Optional[str] = ""
+    end_date: Optional[str] = ""
+    technologies: str = ""
+    achievements: str = ""
+
+
+class ResumeCreate(BaseModel):
+    full_name: Optional[str] = ""
+    phone: Optional[str] = ""
+    email: Optional[str] = ""
+    summary: Optional[str] = ""
+    skills: Optional[List[str]] = []
+    education: Optional[List[dict]] = []
+    work_experience: Optional[List[dict]] = []
+    projects: Optional[List[dict]] = []
+    certifications: Optional[List[str]] = []
+
+
+class ResumeUpdate(BaseModel):
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    summary: Optional[str] = None
+    skills: Optional[List[str]] = None
+    education: Optional[List[dict]] = None
+    work_experience: Optional[List[dict]] = None
+    projects: Optional[List[dict]] = None
+    certifications: Optional[List[str]] = None
+
+
+class ResumeResponse(BaseModel):
+    id: str
+    full_name: str
+    phone: str
+    email: str
+    summary: str
+    skills: List[str]
+    education: List[dict]
+    work_experience: List[dict]
+    projects: List[dict]
+    certifications: List[str]
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True

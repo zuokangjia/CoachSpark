@@ -24,7 +24,7 @@ def extract_jd_requirements(state: MatchState) -> dict:
         [
             (
                 "system",
-                "Extract the key technical requirements and qualifications from this job description. Return a JSON array of strings.",
+                "从以下岗位描述中提取核心技术要求和资格条件。返回 JSON 字符串数组，每条是一个具体的技术要求或条件。使用中文。",
             ),
             ("human", "{jd_text}"),
         ]
@@ -42,7 +42,7 @@ def extract_resume_info(state: MatchState) -> dict:
         [
             (
                 "system",
-                "Extract the key skills, experiences, and qualifications from this resume. Return a JSON array of strings.",
+                "从以下简历中提取候选人的核心技能、经验和资质。返回 JSON 字符串数组，每条是一个具体的技能或经历。使用中文。",
             ),
             ("human", "{resume_text}"),
         ]
@@ -85,7 +85,44 @@ def compare_and_score(state: MatchState) -> dict:
 
 
 def generate_suggestions(state: MatchState) -> dict:
-    return {}
+    gaps = state.get("gaps", [])
+    strengths = state.get("strengths", [])
+    existing_suggestions = state.get("suggestions", [])
+
+    if not gaps:
+        return (
+            {"suggestions": existing_suggestions}
+            if existing_suggestions
+            else {"suggestions": ["你的背景与岗位高度匹配，可以直接投递"]}
+        )
+
+    llm = get_llm()
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "你是资深技术招聘官。基于候选人的简历与岗位描述的差距分析，生成具体的投递建议。区分短期可执行（1-2 周内）和长期提升两类建议。返回 JSON 字符串数组。使用中文。",
+            ),
+            (
+                "human",
+                "优势：\n{strengths}\n\n差距：\n{gaps}\n\n已有建议：\n{existing}",
+            ),
+        ]
+    )
+    chain = prompt | llm | JsonOutputParser()
+    try:
+        result = chain.invoke(
+            {
+                "strengths": "\n".join(f"- {s}" for s in strengths),
+                "gaps": "\n".join(f"- {g}" for g in gaps),
+                "existing": "\n".join(f"- {s}" for s in existing_suggestions),
+            }
+        )
+        suggestions = result if isinstance(result, list) else existing_suggestions
+    except Exception:
+        suggestions = existing_suggestions
+
+    return {"suggestions": suggestions}
 
 
 def build_match_graph():

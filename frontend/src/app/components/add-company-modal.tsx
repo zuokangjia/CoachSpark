@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { X, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { X, Loader2, Target } from "lucide-react";
 import { companiesApi } from "@/lib/api-client";
 import { useCompanyStore } from "@/lib/store/company-store";
 
@@ -11,6 +12,7 @@ interface AddCompanyModalProps {
 }
 
 export function AddCompanyModal({ onClose, onAdded }: AddCompanyModalProps) {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [position, setPosition] = useState("");
   const [jdText, setJdText] = useState("");
@@ -18,6 +20,16 @@ export function AddCompanyModal({ onClose, onAdded }: AddCompanyModalProps) {
   const [submitting, setSubmitting] = useState(false);
 
   const { addCompany, fetchCompanies } = useCompanyStore();
+
+  function handleAnalyzeFirst() {
+    sessionStorage.setItem("pending_company", JSON.stringify({
+      name: name.trim(),
+      position: position.trim(),
+      jd_text: jdText.trim(),
+      applied_date: appliedDate,
+    }));
+    router.push("/match");
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -119,22 +131,33 @@ export function AddCompanyModal({ onClose, onAdded }: AddCompanyModalProps) {
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex justify-between gap-2 pt-2">
             <button
               type="button"
-              onClick={onClose}
-              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-secondary"
+              onClick={handleAnalyzeFirst}
+              disabled={!jdText.trim()}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-brand/30 bg-brand-subtle px-4 py-2 text-sm font-medium text-brand-text hover:bg-brand-subtle/80 disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              取消
+              <Target className="h-4 w-4" />
+              先分析匹配度
             </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-text-inverse hover:bg-brand-hover disabled:opacity-50"
-            >
-              {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              添加
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-secondary"
+              >
+                取消
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-text-inverse hover:bg-brand-hover disabled:opacity-50"
+              >
+                {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                添加
+              </button>
+            </div>
           </div>
         </form>
       </div>

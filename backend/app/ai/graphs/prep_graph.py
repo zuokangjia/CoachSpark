@@ -26,7 +26,46 @@ def prioritize_weak_points(state: PrepState) -> dict:
 
 
 def extract_jd_directions(state: PrepState) -> dict:
-    return {}
+    existing = state.get("jd_directions", [])
+    if existing:
+        return {"jd_directions": existing}
+
+    company_id = state.get("company_id", "")
+    if not company_id:
+        return {"jd_directions": []}
+
+    llm = get_llm()
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "你是资深技术面试官。从以下岗位描述中提取核心技术方向和关键技能，重点关注候选人应该为下一轮面试准备的技术领域。返回 5-8 个具体的技术话题，使用中文。",
+            ),
+            ("human", "{jd_text}"),
+        ]
+    )
+    chain = prompt | llm | JsonOutputParser()
+
+    from app.db.session import SessionLocal
+    from app.db.models import Company
+
+    db = SessionLocal()
+    try:
+        company = db.query(Company).filter(Company.id == company_id).first()
+        jd_text = company.jd_text if company and company.jd_text else ""
+    finally:
+        db.close()
+
+    if not jd_text or len(jd_text) < 10:
+        return {"jd_directions": []}
+
+    try:
+        result = chain.invoke({"jd_text": jd_text})
+        directions = result if isinstance(result, list) else []
+    except Exception:
+        directions = []
+
+    return {"jd_directions": directions}
 
 
 def allocate_tasks_by_day(state: PrepState) -> dict:
@@ -60,7 +99,44 @@ def allocate_tasks_by_day(state: PrepState) -> dict:
 
 
 def generate_daily_details(state: PrepState) -> dict:
-    return {}
+    daily_tasks = state.get("daily_tasks", [])
+    if not daily_tasks:
+        return {"daily_tasks": []}
+
+    llm = get_llm()
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "你是资深面试备战教练。以下是一份逐日备战计划，请为每天的任务补充更具体的细节：推荐具体的学习资源（文章名、文档章节、视频课程名）、具体的练习题目和口头复述的提示。保持原有结构但让每个任务更具可操作性。返回增强后的 daily_tasks JSON 数组。使用中文。",
+            ),
+            (
+                "human",
+                "薄弱点：{weak_points}\nJD 方向：{jd_directions}\n\n当前计划：\n{plan}",
+            ),
+        ]
+    )
+    chain = prompt | llm | JsonOutputParser()
+    try:
+        result = chain.invoke(
+            {
+                "weak_points": state.get("weak_points", []),
+                "jd_directions": state.get("jd_directions", []),
+                "plan": str(daily_tasks),
+            }
+        )
+        enhanced = result if isinstance(result, list) else daily_tasks
+        if isinstance(enhanced, dict) and "daily_tasks" in enhanced:
+            enhanced = enhanced["daily_tasks"]
+    except Exception:
+        enhanced = daily_tasks
+
+    for i, task in enumerate(enhanced):
+        if isinstance(task, dict):
+            task.setdefault("day", i + 1)
+            task.setdefault("completed", False)
+
+    return {"daily_tasks": enhanced}
 
 
 def build_prep_graph():

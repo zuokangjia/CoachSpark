@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   DndContext,
@@ -12,7 +13,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Plus, Loader2, Building2, Calendar, TrendingUp, AlertTriangle, Clock, FileText, AlertCircle } from "lucide-react";
+import { Plus, Loader2, Building2, Calendar, TrendingUp, AlertTriangle, Clock, FileText, AlertCircle, Target } from "lucide-react";
 import { useCompanyStore } from "@/lib/store/company-store";
 import { COLUMNS, cn } from "@/lib/utils";
 import { companiesApi, dashboardApi } from "@/lib/api-client";
@@ -122,13 +123,22 @@ export default function DashboardPage() {
             管理你的所有投递和面试进度
           </p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-text-inverse hover:bg-brand-hover"
-        >
-          <Plus className="h-4 w-4" />
-          添加流程
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/match"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-brand/30 bg-brand-subtle px-4 py-2 text-sm font-medium text-brand-text hover:bg-brand-subtle/80"
+          >
+            <Target className="h-4 w-4" />
+            岗位匹配
+          </Link>
+          <button
+            onClick={() => setShowModal(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-text-inverse hover:bg-brand-hover"
+          >
+            <Plus className="h-4 w-4" />
+            添加流程
+          </button>
+        </div>
       </div>
 
       {todayBrief && (

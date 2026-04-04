@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.services.profile_service import get_profile_summary
-from app.db.models import Interview, Company
+from app.db.models import Interview, Company, Resume
 
 
 class ContextBuilder:
@@ -10,6 +10,9 @@ class ContextBuilder:
 
     def build_review_context(self, company_id: str) -> str:
         parts = []
+        resume = self.db.query(Resume).first()
+        if resume and resume.skills:
+            parts.append(f"[User Skills] {', '.join(resume.skills)}")
         profile_summary = get_profile_summary(self.db)
         if profile_summary:
             parts.append(f"[User Profile] {profile_summary}")
@@ -46,6 +49,9 @@ class ContextBuilder:
 
     def build_prep_context(self, company_id: str) -> str:
         parts = []
+        resume = self.db.query(Resume).first()
+        if resume and resume.skills:
+            parts.append(f"[User Skills] {', '.join(resume.skills)}")
         profile_summary = get_profile_summary(self.db)
         if profile_summary:
             parts.append(f"[User Profile] {profile_summary}")

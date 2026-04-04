@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { ArrowLeft, Loader2, Check, Circle, Clock } from "lucide-react";
+import { ArrowLeft, Loader2, Check, Circle, Clock, Zap, Info } from "lucide-react";
 import { prepApi, companiesApi, profileApi } from "@/lib/api-client";
 
 interface DailyTask {
@@ -35,7 +35,9 @@ export default function PrepPage() {
   const [daysAvailable, setDaysAvailable] = useState(7);
   const [targetRound, setTargetRound] = useState(1);
   const [weakPoints, setWeakPoints] = useState("");
+  const [autoWeakPoints, setAutoWeakPoints] = useState<string[]>([]);
   const [jdDirections, setJdDirections] = useState("");
+  const [hasJd, setHasJd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [plan, setPlan] = useState<DailyTask[]>([]);
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
@@ -48,19 +50,24 @@ export default function PrepPage() {
 
   async function loadExistingData() {
     try {
-      const [chainRes, latestPlanRes, profileRes] = await Promise.all([
+      const [companyRes, chainRes, latestPlanRes, profileRes] = await Promise.all([
+        companiesApi.get(id),
         companiesApi.getChain(id),
         prepApi.getLatest(id),
         profileApi.get(),
       ]);
 
+      if (companyRes.data?.jd_text && companyRes.data.jd_text.length > 10) {
+        setHasJd(true);
+      }
+
+      const allWeakPoints = new Set<string>();
       if (chainRes.data?.weak_point_tracking) {
         const persistentWp = Object.entries(chainRes.data.weak_point_tracking)
           .filter(([, d]: [string, any]) => d.is_persistent)
           .map(([wp]: [string, any]) => wp);
-        if (persistentWp.length > 0) {
-          setWeakPoints(persistentWp.join(", "));
-        }
+        persistentWp.forEach((wp: string) => allWeakPoints.add(wp));
+        setAutoWeakPoints(persistentWp);
       }
 
       if (profileRes.data?.weak_points) {
@@ -69,8 +76,9 @@ export default function PrepPage() {
             d.trend === "declining" || (d.trend === "stable" && d.avg_score < 6)
           )
           .map(([wp]: [string, any]) => wp);
-        if (decliningOrStable.length > 0 && !weakPoints) {
-          setWeakPoints(decliningOrStable.join(", "));
+        decliningOrStable.forEach((wp: string) => allWeakPoints.add(wp));
+        if (allWeakPoints.size > 0 && !weakPoints) {
+          setWeakPoints(Array.from(allWeakPoints).join(", "));
         }
       }
 
@@ -85,8 +93,8 @@ export default function PrepPage() {
 
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault();
-    if (!weakPoints.trim() && !jdDirections.trim()) {
-      alert("请至少填写薄弱点或 JD 方向");
+    if (!weakPoints.trim() && !jdDirections.trim() && !hasJd) {
+      alert("请至少填写薄弱点，或确保公司已填写 JD");
       return;
     }
 
@@ -160,6 +168,12 @@ export default function PrepPage() {
           <label className="mb-1 block text-sm font-medium text-text-secondary">
             薄弱点
           </label>
+          {autoWeakPoints.length > 0 && (
+            <div className="mb-2 flex items-center gap-1.5 rounded-md bg-brand-subtle px-3 py-1.5 text-xs text-brand-text">
+              <Zap className="h-3 w-3" />
+              已自动填充 {autoWeakPoints.length} 个跨轮次薄弱点
+            </div>
+          )}
           <textarea
             value={weakPoints}
             onChange={(e) => setWeakPoints(e.target.value)}
@@ -170,14 +184,22 @@ export default function PrepPage() {
         </div>
 
         <div className="mt-4">
-          <label className="mb-1 block text-sm font-medium text-text-secondary">
-            JD 关键方向
-          </label>
+          <div className="mb-1 flex items-center justify-between">
+            <label className="text-sm font-medium text-text-secondary">
+              JD 关键方向
+            </label>
+            {hasJd && (
+              <span className="flex items-center gap-1 text-[10px] text-brand-text">
+                <Info className="h-3 w-3" />
+                AI 将自动从 JD 提取
+              </span>
+            )}
+          </div>
           <textarea
             value={jdDirections}
             onChange={(e) => setJdDirections(e.target.value)}
             rows={3}
-            placeholder="岗位描述中的核心技术方向..."
+            placeholder={hasJd ? "留空将自动从岗位描述提取，也可手动补充..." : "岗位描述中的核心技术方向..."}
             className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus placeholder:text-text-muted"
           />
         </div>

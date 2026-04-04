@@ -27,7 +27,7 @@ export const interviewsApi = {
 };
 
 export const matchApi = {
-  analyze: (data: { jd_text: string; resume_text: string }) => api.post("/match/", data),
+  analyze: (data: { jd_text: string; resume_text?: string; use_stored_resume?: boolean }) => api.post("/match/", data),
 };
 
 export const reviewApi = {
@@ -55,4 +55,10 @@ export const offersApi = {
   create: (data: any) => api.post("/offers/", data),
   update: (id: string, data: any) => api.put(`/offers/${id}`, data),
   delete: (id: string) => api.delete(`/offers/${id}`),
+};
+
+export const resumeApi = {
+  get: () => api.get("/resume/"),
+  update: (data: any) => api.put("/resume/", data),
+  rebuild: () => api.post("/resume/rebuild"),
 };
