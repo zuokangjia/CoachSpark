@@ -10,6 +10,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     JSON,
+    Index,
 )
 from sqlalchemy.orm import relationship
 
@@ -35,6 +36,11 @@ class Company(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    __table_args__ = (
+        Index("ix_companies_status", "status"),
+        Index("ix_companies_applied_date", "applied_date"),
     )
 
     interviews = relationship(
@@ -79,6 +85,11 @@ class Interview(Base):
     result_status = Column(String(50), nullable=False, default="pending")
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
+    __table_args__ = (
+        Index("ix_interviews_company_id", "company_id"),
+        Index("ix_interviews_company_round", "company_id", "round"),
+    )
+
     company = relationship("Company", back_populates="interviews")
 
 
@@ -92,6 +103,8 @@ class PrepPlan(Base):
     daily_tasks = Column(JSON, nullable=False, default=list)
     generated_from = Column(JSON, nullable=False, default=list)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (Index("ix_prep_plans_company_id", "company_id"),)
 
     company = relationship("Company", back_populates="prep_plans")
 

@@ -1,7 +1,10 @@
 from sqlalchemy.orm import Session
 
+from fastapi import HTTPException
+
 from app.ai.graphs.match_graph import build_match_graph
 from app.db.models import Resume
+from app.core.logging import logger
 
 _match_graph = None
 
@@ -79,18 +82,25 @@ def build_resume_text_from_model(resume: Resume) -> str:
 
 def analyze_match(jd_text: str, resume_text: str) -> dict:
     graph = get_match_graph()
-    result = graph.invoke(
-        {
-            "jd_text": jd_text,
-            "resume_text": resume_text,
-            "jd_requirements": [],
-            "resume_info": [],
-            "match_percentage": 0,
-            "strengths": [],
-            "gaps": [],
-            "suggestions": [],
-        }
-    )
+    try:
+        result = graph.invoke(
+            {
+                "jd_text": jd_text,
+                "resume_text": resume_text,
+                "jd_requirements": [],
+                "resume_info": [],
+                "match_percentage": 0,
+                "strengths": [],
+                "gaps": [],
+                "suggestions": [],
+            }
+        )
+    except Exception as e:
+        logger.error(f"Match analysis failed: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="AI analysis service is temporarily unavailable. Please try again later.",
+        )
     return {
         "match_percentage": result.get("match_percentage", 0),
         "strengths": result.get("strengths", []),

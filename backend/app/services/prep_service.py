@@ -1,8 +1,10 @@
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.ai.graphs.prep_graph import build_prep_graph
 from app.services.context_builder import ContextBuilder
 from app.db.models import PrepPlan, generate_uuid
+from app.core.logging import logger
 
 _prep_graph = None
 
@@ -28,18 +30,25 @@ def generate_prep_plan(
     cb = ContextBuilder(db)
     context = cb.build_prep_context(company_id)
 
-    result = graph.invoke(
-        {
-            "company_id": company_id,
-            "target_round": target_round,
-            "days_available": days_available,
-            "weak_points": weak_points or [],
-            "jd_directions": jd_directions or [],
-            "interview_chain": interview_chain or [],
-            "context": context,
-            "daily_tasks": [],
-        }
-    )
+    try:
+        result = graph.invoke(
+            {
+                "company_id": company_id,
+                "target_round": target_round,
+                "days_available": days_available,
+                "weak_points": weak_points or [],
+                "jd_directions": jd_directions or [],
+                "interview_chain": interview_chain or [],
+                "context": context,
+                "daily_tasks": [],
+            }
+        )
+    except Exception as e:
+        logger.error(f"Prep plan generation failed: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="AI analysis service is temporarily unavailable. Please try again later.",
+        )
     daily_tasks = result.get("daily_tasks", [])
 
     plan = PrepPlan(

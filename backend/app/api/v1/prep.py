@@ -1,15 +1,19 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.company import PrepRequest, PrepResponse
 from app.services.prep_service import generate_prep_plan, get_latest_prep_plan
 
+limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/prep", tags=["ai"])
 
 
 @router.post("/generate", response_model=PrepResponse)
-def run_prep(data: PrepRequest, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def run_prep(request: Request, data: PrepRequest, db: Session = Depends(get_db)):
     result = generate_prep_plan(
         db=db,
         company_id=data.company_id,

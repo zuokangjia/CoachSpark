@@ -1,15 +1,19 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.company import ReviewRequest, ReviewResponse
 from app.services.review_service import analyze_review, save_review_and_update_profile
 
+limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/review", tags=["ai"])
 
 
 @router.post("/analyze", response_model=ReviewResponse)
-def run_review(data: ReviewRequest, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def run_review(request: Request, data: ReviewRequest, db: Session = Depends(get_db)):
     result = analyze_review(
         db=db,
         raw_notes=data.raw_notes,

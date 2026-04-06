@@ -4,25 +4,25 @@ from pydantic import BaseModel, Field
 
 
 class CompanyCreate(BaseModel):
-    name: str
-    position: str
-    jd_text: Optional[str] = ""
-    status: str = "applied"
+    name: str = Field(..., min_length=1, max_length=255)
+    position: str = Field(..., min_length=1, max_length=255)
+    jd_text: Optional[str] = Field("", max_length=50000)
+    status: str = Field("applied", pattern="^(applied|interviewing|passed|rejected)$")
     applied_date: Optional[date] = None
     next_event_date: Optional[date] = None
-    next_event_type: Optional[str] = None
-    notes: Optional[str] = ""
+    next_event_type: Optional[str] = Field(None, max_length=50)
+    notes: Optional[str] = Field("", max_length=5000)
 
 
 class CompanyUpdate(BaseModel):
-    name: Optional[str] = None
-    position: Optional[str] = None
-    jd_text: Optional[str] = None
-    status: Optional[str] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    position: Optional[str] = Field(None, min_length=1, max_length=255)
+    jd_text: Optional[str] = Field(None, max_length=50000)
+    status: Optional[str] = Field(None, pattern="^(applied|interviewing|passed|rejected)$")
     applied_date: Optional[date] = None
     next_event_date: Optional[date] = None
-    next_event_type: Optional[str] = None
-    notes: Optional[str] = None
+    next_event_type: Optional[str] = Field(None, max_length=50)
+    notes: Optional[str] = Field(None, max_length=5000)
 
 
 class InterviewBrief(BaseModel):
@@ -95,9 +95,9 @@ class InterviewResponse(BaseModel):
 
 
 class MatchRequest(BaseModel):
-    jd_text: str = Field(..., description="Full job description text")
+    jd_text: str = Field(..., min_length=1, max_length=50000, description="Full job description text")
     resume_text: str = Field(
-        "", description="Resume text (empty if using stored resume)"
+        "", max_length=50000, description="Resume text (empty if using stored resume)"
     )
     use_stored_resume: bool = Field(
         False, description="Use stored resume from database"
@@ -120,16 +120,16 @@ class ReviewQuestion(BaseModel):
 
 
 class ReviewRequest(BaseModel):
-    raw_notes: str
-    company_name: Optional[str] = ""
-    position: Optional[str] = ""
-    round: Optional[int] = 1
+    raw_notes: str = Field(..., min_length=1, max_length=20000)
+    company_name: Optional[str] = Field("", max_length=255)
+    position: Optional[str] = Field("", max_length=255)
+    round: Optional[int] = Field(1, ge=1, le=50)
     jd_key_points: Optional[List[str]] = []
     company_id: Optional[str] = ""
     interview_id: Optional[str] = ""
     interview_date: Optional[str] = ""
-    interview_format: Optional[str] = ""
-    interviewer: Optional[str] = ""
+    interview_format: Optional[str] = Field("", max_length=50)
+    interviewer: Optional[str] = Field("", max_length=255)
 
 
 class ReviewResponse(BaseModel):

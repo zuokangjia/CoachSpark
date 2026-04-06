@@ -1,11 +1,13 @@
 from datetime import date
 
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.ai.graphs.review_graph import build_review_graph
 from app.services.context_builder import ContextBuilder
 from app.services.profile_service import update_profile_incremental
 from app.db.models import Interview, Company, generate_uuid
+from app.core.logging import logger
 
 _review_graph = None
 
@@ -33,22 +35,29 @@ def analyze_review(
         cb = ContextBuilder(db)
         context = cb.build_review_context(company_id)
 
-    result = graph.invoke(
-        {
-            "raw_notes": raw_notes,
-            "company_name": company_name,
-            "position": position,
-            "round_num": round_num,
-            "jd_key_points": jd_key_points or [],
-            "context": context,
-            "questions": [],
-            "weak_points": [],
-            "strong_points": [],
-            "next_round_prediction": [],
-            "interviewer_signals": [],
-            "analysis_complete": False,
-        }
-    )
+    try:
+        result = graph.invoke(
+            {
+                "raw_notes": raw_notes,
+                "company_name": company_name,
+                "position": position,
+                "round_num": round_num,
+                "jd_key_points": jd_key_points or [],
+                "context": context,
+                "questions": [],
+                "weak_points": [],
+                "strong_points": [],
+                "next_round_prediction": [],
+                "interviewer_signals": [],
+                "analysis_complete": False,
+            }
+        )
+    except Exception as e:
+        logger.error(f"Review analysis failed: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="AI analysis service is temporarily unavailable. Please try again later.",
+        )
     return {
         "questions": result.get("questions", []),
         "weak_points": result.get("weak_points", []),
