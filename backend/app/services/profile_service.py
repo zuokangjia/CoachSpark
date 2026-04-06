@@ -77,7 +77,7 @@ def rebuild_profile(db: Session) -> UserProfile:
     profile.weak_points = weak_points_summary
     profile.strong_points = top_strong
     profile.interview_count = len(interviews)
-    profile.offer_count = sum(1 for c in companies if c.status == "rejected")
+    profile.offer_count = sum(1 for c in companies if c.status == "offer")
     db.commit()
     db.refresh(profile)
     return profile

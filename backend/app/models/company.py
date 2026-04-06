@@ -1,11 +1,20 @@
 from datetime import date, datetime
 from typing import Optional, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+VALID_COMPANY_STATUSES = {"applied", "interviewing", "offer", "rejected"}
+VALID_INTERVIEW_FORMATS = {"phone", "video", "onsite", "other"}
+VALID_RESULT_STATUSES = {"pending", "passed", "failed"}
+
+# Maximum character lengths for LLM inputs to avoid token limit issues
+_MAX_JD_LEN = 8_000
+_MAX_RESUME_LEN = 8_000
+_MAX_NOTES_LEN = 10_000
 
 
 class CompanyCreate(BaseModel):
-    name: str
-    position: str
+    name: str = Field(..., min_length=1, max_length=255)
+    position: str = Field(..., min_length=1, max_length=255)
     jd_text: Optional[str] = ""
     status: str = "applied"
     applied_date: Optional[date] = None
@@ -13,16 +22,30 @@ class CompanyCreate(BaseModel):
     next_event_type: Optional[str] = None
     notes: Optional[str] = ""
 
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        if v not in VALID_COMPANY_STATUSES:
+            raise ValueError(f"status must be one of {sorted(VALID_COMPANY_STATUSES)}")
+        return v
+
 
 class CompanyUpdate(BaseModel):
-    name: Optional[str] = None
-    position: Optional[str] = None
+    name: Optional[str] = Field(None, max_length=255)
+    position: Optional[str] = Field(None, max_length=255)
     jd_text: Optional[str] = None
     status: Optional[str] = None
     applied_date: Optional[date] = None
     next_event_date: Optional[date] = None
     next_event_type: Optional[str] = None
     notes: Optional[str] = None
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in VALID_COMPANY_STATUSES:
+            raise ValueError(f"status must be one of {sorted(VALID_COMPANY_STATUSES)}")
+        return v
 
 
 class InterviewBrief(BaseModel):
@@ -95,9 +118,9 @@ class InterviewResponse(BaseModel):
 
 
 class MatchRequest(BaseModel):
-    jd_text: str = Field(..., description="Full job description text")
+    jd_text: str = Field(..., description="Full job description text", max_length=_MAX_JD_LEN)
     resume_text: str = Field(
-        "", description="Resume text (empty if using stored resume)"
+        "", description="Resume text (empty if using stored resume)", max_length=_MAX_RESUME_LEN
     )
     use_stored_resume: bool = Field(
         False, description="Use stored resume from database"
@@ -120,7 +143,7 @@ class ReviewQuestion(BaseModel):
 
 
 class ReviewRequest(BaseModel):
-    raw_notes: str
+    raw_notes: str = Field(..., max_length=_MAX_NOTES_LEN)
     company_name: Optional[str] = ""
     position: Optional[str] = ""
     round: Optional[int] = 1

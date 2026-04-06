@@ -1,5 +1,6 @@
 from typing import TypedDict, List
 import json
+import logging
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
@@ -10,6 +11,8 @@ from app.ai.prompts.review import (
     REVIEW_USER_PROMPT,
     SCORING_RUBRIC,
 )
+
+logger = logging.getLogger("coachspark")
 
 
 class ReviewState(TypedDict):
@@ -77,7 +80,8 @@ def batch_score_answers(state: ReviewState) -> dict:
         )
         if not isinstance(results, list):
             results = []
-    except Exception:
+    except Exception as exc:
+        logger.warning("batch_score_answers LLM call failed: %s", exc)
         results = []
 
     scored = []
@@ -185,7 +189,8 @@ def predict_next_round(state: ReviewState) -> dict:
             }
         )
         predictions = result if isinstance(result, list) else []
-    except Exception:
+    except Exception as exc:
+        logger.warning("predict_next_round LLM call failed: %s", exc)
         predictions = []
 
     return {"next_round_prediction": predictions}
