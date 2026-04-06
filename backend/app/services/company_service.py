@@ -9,8 +9,8 @@ class CompanyService:
     def __init__(self, db: Session):
         self.repo = CompanyRepository(db)
 
-    def get_all(self):
-        return self.repo.get_all()
+    def get_all(self, skip: int = 0, limit: int = 100):
+        return self.repo.get_all(skip=skip, limit=limit)
 
     def get_by_id(self, company_id: str):
         return self.repo.get_with_interviews(company_id)

@@ -1,10 +1,13 @@
 from typing import TypedDict, List, Optional
+import logging
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 
 from app.ai.llm import get_llm
 from app.ai.prompts.match import MATCH_SYSTEM_PROMPT, MATCH_USER_PROMPT
+
+logger = logging.getLogger("coachspark")
 
 
 class MatchState(TypedDict):
@@ -119,7 +122,8 @@ def generate_suggestions(state: MatchState) -> dict:
             }
         )
         suggestions = result if isinstance(result, list) else existing_suggestions
-    except Exception:
+    except Exception as exc:
+        logger.warning("generate_suggestions LLM call failed: %s", exc)
         suggestions = existing_suggestions
 
     return {"suggestions": suggestions}

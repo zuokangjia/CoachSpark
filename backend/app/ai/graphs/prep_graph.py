@@ -1,10 +1,13 @@
 from typing import TypedDict, List, Optional
+import logging
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 
 from app.ai.llm import get_llm
 from app.ai.prompts.prep import PREP_SYSTEM_PROMPT, PREP_USER_PROMPT
+
+logger = logging.getLogger("coachspark")
 
 
 class PrepState(TypedDict):
@@ -62,7 +65,8 @@ def extract_jd_directions(state: PrepState) -> dict:
     try:
         result = chain.invoke({"jd_text": jd_text})
         directions = result if isinstance(result, list) else []
-    except Exception:
+    except Exception as exc:
+        logger.warning("extract_jd_directions LLM call failed: %s", exc)
         directions = []
 
     return {"jd_directions": directions}
@@ -128,7 +132,8 @@ def generate_daily_details(state: PrepState) -> dict:
         enhanced = result if isinstance(result, list) else daily_tasks
         if isinstance(enhanced, dict) and "daily_tasks" in enhanced:
             enhanced = enhanced["daily_tasks"]
-    except Exception:
+    except Exception as exc:
+        logger.warning("generate_daily_details LLM call failed: %s", exc)
         enhanced = daily_tasks
 
     for i, task in enumerate(enhanced):
