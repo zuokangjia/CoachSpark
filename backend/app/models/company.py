@@ -18,7 +18,9 @@ class CompanyUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     position: Optional[str] = Field(None, min_length=1, max_length=255)
     jd_text: Optional[str] = Field(None, max_length=50000)
-    status: Optional[str] = Field(None, pattern="^(applied|interviewing|passed|rejected)$")
+    status: Optional[str] = Field(
+        None, pattern="^(applied|interviewing|passed|rejected)$"
+    )
     applied_date: Optional[date] = None
     next_event_date: Optional[date] = None
     next_event_type: Optional[str] = Field(None, max_length=50)
@@ -95,7 +97,9 @@ class InterviewResponse(BaseModel):
 
 
 class MatchRequest(BaseModel):
-    jd_text: str = Field(..., min_length=1, max_length=50000, description="Full job description text")
+    jd_text: str = Field(
+        ..., min_length=1, max_length=50000, description="Full job description text"
+    )
     resume_text: str = Field(
         "", max_length=50000, description="Resume text (empty if using stored resume)"
     )
@@ -145,6 +149,8 @@ class DailyTask(BaseModel):
     focus: str
     priority: str
     tasks: List[str]
+    total_minutes: Optional[int] = Field(None, ge=0, le=240)
+    completed_task_indexes: List[int] = Field(default_factory=list)
     completed: bool = False
 
 
@@ -158,7 +164,14 @@ class PrepRequest(BaseModel):
 
 
 class PrepResponse(BaseModel):
+    prep_plan_id: Optional[str] = None
     daily_tasks: List[DailyTask]
+
+
+class PrepTaskUpdateRequest(BaseModel):
+    day: int = Field(..., ge=1, le=30)
+    task_index: int = Field(..., ge=0, le=20)
+    completed: bool
 
 
 class OfferCreate(BaseModel):

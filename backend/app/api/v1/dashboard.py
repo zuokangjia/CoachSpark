@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from collections import Counter
 
 from app.db.session import get_db
-from app.db.models import Company, Interview
+from app.db.models import Company, Interview, PrepPlan
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -14,8 +14,11 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 def get_dashboard_stats(db: Session = Depends(get_db)):
     companies = db.query(Company).all()
     interviews = db.query(Interview).all()
+    prep_plans = db.query(PrepPlan).all()
 
-    status_counts = Counter(c.status for c in companies)
+    status_counts: Counter[str] = Counter(
+        str(getattr(c, "status", "")) for c in companies
+    )
 
     all_weak: dict[str, int] = {}
     for iv in interviews:
@@ -25,6 +28,66 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
 
     top_weak = sorted(all_weak.items(), key=lambda x: x[1], reverse=True)[:5]
 
+    scored_interviews: list[float] = []
+    for iv in interviews:
+        analysis = iv.ai_analysis if isinstance(iv.ai_analysis, dict) else {}
+        questions = analysis.get("questions", [])
+        if not isinstance(questions, list) or not questions:
+            continue
+        scores: list[float] = []
+        for q in questions:
+            if not isinstance(q, dict):
+                continue
+            value = q.get("score")
+            if isinstance(value, (int, float)):
+                scores.append(float(value))
+        if not scores:
+            continue
+        scored_interviews.append(round(sum(scores) / len(scores), 2))
+
+    recent_slice = scored_interviews[-3:]
+    previous_slice = scored_interviews[-6:-3]
+    recent_avg = (
+        round(sum(recent_slice) / len(recent_slice), 2) if recent_slice else 0.0
+    )
+    previous_avg = (
+        round(sum(previous_slice) / len(previous_slice), 2) if previous_slice else 0.0
+    )
+    score_improvement = round(recent_avg - previous_avg, 2) if previous_slice else 0.0
+
+    total_prep_tasks = 0
+    completed_prep_tasks = 0
+    for plan in prep_plans:
+        daily_tasks = plan.daily_tasks if isinstance(plan.daily_tasks, list) else []
+        for day in daily_tasks:
+            if not isinstance(day, dict):
+                continue
+            tasks = day.get("tasks", [])
+            if not isinstance(tasks, list):
+                continue
+            total_prep_tasks += len(tasks)
+
+            completed_indexes = day.get("completed_task_indexes", [])
+            if not isinstance(completed_indexes, list):
+                completed_indexes = []
+            normalized_completed = {
+                int(index)
+                for index in completed_indexes
+                if isinstance(index, int) and 0 <= index < len(tasks)
+            }
+            if normalized_completed:
+                completed_prep_tasks += len(normalized_completed)
+                continue
+
+            if bool(day.get("completed", False)) and tasks:
+                completed_prep_tasks += len(tasks)
+
+    prep_completion_rate = (
+        round((completed_prep_tasks / total_prep_tasks) * 100, 1)
+        if total_prep_tasks > 0
+        else 0.0
+    )
+
     return {
         "total_companies": len(companies),
         "applied": status_counts.get("applied", 0),
@@ -32,6 +95,15 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         "rejected": status_counts.get("rejected", 0),
         "total_interviews": len(interviews),
         "top_weak_points": top_weak,
+        "day3_metrics": {
+            "prep_completion_rate": prep_completion_rate,
+            "completed_prep_tasks": completed_prep_tasks,
+            "total_prep_tasks": total_prep_tasks,
+            "recent_avg_score": recent_avg,
+            "previous_avg_score": previous_avg,
+            "score_improvement": score_improvement,
+            "scored_interviews": len(scored_interviews),
+        },
     }
 
 

@@ -659,7 +659,7 @@ function ReviewResultDisplay({
               返回公司详情
             </Link>
             <Link
-              href={`/company/${companyId}/prep`}
+              href={`/company/${companyId}/prep?round=${round + 1}&weak_points=${encodeURIComponent((weakPoints || []).join(","))}`}
               className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-text-inverse hover:bg-brand-hover"
             >
               <Lightbulb className="h-4 w-4" />

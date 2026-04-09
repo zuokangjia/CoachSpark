@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2, Check, Circle, Clock, Zap, Info } from "lucide-react";
@@ -12,7 +12,51 @@ interface DailyTask {
   priority: string;
   tasks: string[];
   total_minutes?: number;
+  completed_task_indexes?: number[];
   completed: boolean;
+}
+
+type WeakPointTrend = { trend?: string; avg_score?: number };
+type WeakPointTrackingInfo = { is_persistent?: boolean };
+
+function normalizePlan(raw: unknown[]): DailyTask[] {
+  if (!Array.isArray(raw)) return [];
+
+  const list: DailyTask[] = [];
+  for (let i = 0; i < raw.length; i += 1) {
+    const item = raw[i];
+    if (!item || typeof item !== "object") continue;
+    const record = item as Record<string, unknown>;
+
+    const day = Number.isInteger(record.day) ? (record.day as number) : i + 1;
+    const focus = typeof record.focus === "string" && record.focus.trim()
+      ? record.focus.trim()
+      : `第 ${day} 天重点`;
+    const priority = typeof record.priority === "string" ? record.priority : "medium";
+    const tasks = Array.isArray(record.tasks)
+      ? record.tasks.map((t) => String(t).trim()).filter(Boolean).slice(0, 5)
+      : [];
+    const completed = Boolean(record.completed);
+    const totalMinutes = typeof record.total_minutes === "number" ? record.total_minutes : undefined;
+    const completedIndexes = Array.isArray(record.completed_task_indexes)
+      ? record.completed_task_indexes
+        .map((idx) => Number(idx))
+        .filter((idx) => Number.isInteger(idx) && idx >= 0 && idx < tasks.length)
+      : [];
+
+    if (tasks.length === 0) continue;
+    list.push({
+      day,
+      focus,
+      priority,
+      tasks,
+      completed,
+      completed_task_indexes: completedIndexes,
+      total_minutes: totalMinutes,
+    });
+  }
+
+  return list.sort((a, b) => a.day - b.day);
 }
 
 const priorityColors: Record<string, string> = {
@@ -40,15 +84,10 @@ export default function PrepPage() {
   const [hasJd, setHasJd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [plan, setPlan] = useState<DailyTask[]>([]);
+  const [prepPlanId, setPrepPlanId] = useState("");
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    const r = searchParams.get("round");
-    if (r) setTargetRound(Number(r));
-    loadExistingData();
-  }, [id, searchParams]);
-
-  async function loadExistingData() {
+  const loadExistingData = useCallback(async () => {
     try {
       const [companyRes, chainRes, latestPlanRes, profileRes] = await Promise.all([
         companiesApi.get(id),
@@ -63,33 +102,71 @@ export default function PrepPage() {
 
       const allWeakPoints = new Set<string>();
       if (chainRes.data?.weak_point_tracking) {
-        const persistentWp = Object.entries(chainRes.data.weak_point_tracking)
-          .filter(([, d]: [string, any]) => d.is_persistent)
-          .map(([wp]: [string, any]) => wp);
-        persistentWp.forEach((wp: string) => allWeakPoints.add(wp));
+        const tracking = chainRes.data.weak_point_tracking as Record<string, WeakPointTrackingInfo>;
+        const persistentWp = Object.entries(tracking)
+          .filter(([, info]) => Boolean(info?.is_persistent))
+          .map(([wp]) => wp);
+        persistentWp.forEach((wp) => allWeakPoints.add(wp));
         setAutoWeakPoints(persistentWp);
       }
 
-      if (profileRes.data?.weak_points) {
-        const decliningOrStable = Object.entries(profileRes.data.weak_points)
-          .filter(([, d]: [string, any]) =>
-            d.trend === "declining" || (d.trend === "stable" && d.avg_score < 6)
+      if (Array.isArray(profileRes.data?.dimensions)) {
+        const dimensions = profileRes.data.dimensions as Array<{
+          dimension: string;
+          trend?: string;
+          level?: number;
+        }>;
+        const decliningOrStable = dimensions
+          .filter((info) =>
+            info?.trend === "down" || (info?.trend === "stable" && (info?.level ?? 5) <= 3)
           )
-          .map(([wp]: [string, any]) => wp);
-        decliningOrStable.forEach((wp: string) => allWeakPoints.add(wp));
-        if (allWeakPoints.size > 0 && !weakPoints) {
-          setWeakPoints(Array.from(allWeakPoints).join(", "));
+          .map((info) => info.dimension)
+          .filter(Boolean);
+        decliningOrStable.forEach((wp) => allWeakPoints.add(wp));
+        if (allWeakPoints.size > 0) {
+          setWeakPoints((prev) =>
+            prev.trim().length > 0 ? prev : Array.from(allWeakPoints).join(", "),
+          );
         }
       }
 
       if (latestPlanRes.data?.daily_tasks?.length > 0) {
-        setPlan(latestPlanRes.data.daily_tasks);
-        setCompletedTasks(new Set());
+        setPrepPlanId(String(latestPlanRes.data.prep_plan_id || ""));
+        const normalized = normalizePlan(latestPlanRes.data.daily_tasks);
+        setPlan(normalized);
+        const initialCompleted = new Set<string>();
+        for (const day of normalized) {
+          if (Array.isArray(day.completed_task_indexes)) {
+            day.completed_task_indexes.forEach((idx) => {
+              if (Number.isInteger(idx) && idx >= 0 && idx < day.tasks.length) {
+                initialCompleted.add(`${day.day}-${idx}`);
+              }
+            });
+          }
+        }
+        setCompletedTasks(initialCompleted);
       }
     } catch {
       // data loading failure is non-blocking
     }
-  }
+  }, [id]);
+
+  useEffect(() => {
+    const r = searchParams.get("round");
+    if (r) setTargetRound(Number(r));
+    const wp = searchParams.get("weak_points");
+    if (wp) {
+      const normalizedFromQuery = wp
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .join(", ");
+      if (normalizedFromQuery) {
+        setWeakPoints((prev) => (prev.trim().length > 0 ? prev : normalizedFromQuery));
+      }
+    }
+    loadExistingData();
+  }, [searchParams, loadExistingData]);
 
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault();
@@ -113,7 +190,9 @@ export default function PrepPage() {
       }
 
       const res = await prepApi.generate(payload);
-      setPlan(res.data.daily_tasks || []);
+      setPrepPlanId(String(res.data.prep_plan_id || ""));
+      const normalized = normalizePlan(res.data.daily_tasks || []);
+      setPlan(normalized);
       setCompletedTasks(new Set());
     } catch {
       alert("生成失败，请重试");
@@ -122,17 +201,43 @@ export default function PrepPage() {
     }
   }
 
-  function toggleTask(day: number, index: number) {
+  async function toggleTask(day: number, index: number) {
     const key = `${day}-${index}`;
+    let nextCompleted = false;
     setCompletedTasks((prev) => {
       const next = new Set(prev);
       if (next.has(key)) {
         next.delete(key);
+        nextCompleted = false;
       } else {
         next.add(key);
+        nextCompleted = true;
       }
       return next;
     });
+
+    if (!prepPlanId) {
+      return;
+    }
+
+    try {
+      await prepApi.updateTaskCompletion(prepPlanId, {
+        day,
+        task_index: index,
+        completed: nextCompleted,
+      });
+    } catch {
+      setCompletedTasks((prev) => {
+        const reverted = new Set(prev);
+        if (nextCompleted) {
+          reverted.delete(key);
+        } else {
+          reverted.add(key);
+        }
+        return reverted;
+      });
+      alert("任务状态保存失败，请重试");
+    }
   }
 
   return (
@@ -251,8 +356,8 @@ export default function PrepPage() {
                 {day.tasks.map((task, i) => {
                   const key = `${day.day}-${i}`;
                   const isCompleted = completedTasks.has(key);
-                  const timeMatch = task.match(/\((\d+)\s*min\)/);
-                  const displayTask = timeMatch ? task.replace(/\s*\(\d+\s*min\)/, "") : task;
+                  const timeMatch = task.match(/\((\d+)\s*(分钟|min)\)/i);
+                  const displayTask = timeMatch ? task.replace(/\s*\(\d+\s*(分钟|min)\)/i, "") : task;
                   const minutes = timeMatch ? parseInt(timeMatch[1], 10) : null;
 
                   return (
@@ -263,6 +368,7 @@ export default function PrepPage() {
                       }`}
                     >
                       <button
+                        type="button"
                         onClick={() => toggleTask(day.day, i)}
                         className="mt-0.5 shrink-0"
                       >

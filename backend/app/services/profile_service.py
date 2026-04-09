@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from collections import Counter
+from datetime import datetime
 
 from app.db.models import UserProfile, Interview, Company, generate_uuid
 
@@ -167,6 +168,83 @@ def get_profile_summary(db: Session) -> str:
     if profile.strong_points:
         parts.append(f"优势: {', '.join(profile.strong_points[:2])}")
     return " | ".join(parts) if parts else ""
+
+
+def build_reference_persona(db: Session) -> dict:
+    profile = get_or_create_profile(db)
+
+    weak_points = profile.weak_points if isinstance(profile.weak_points, dict) else {}
+    sorted_weak_points = sorted(
+        weak_points.items(),
+        key=lambda item: item[1].get("count", 0),
+        reverse=True,
+    )
+
+    key_strengths = (
+        profile.strong_points[:3] if isinstance(profile.strong_points, list) else []
+    )
+    key_weaknesses = [name for name, _ in sorted_weak_points[:3]]
+
+    focus_items: list[str] = []
+    evidence_cards: list[dict] = []
+    for name, data in sorted_weak_points[:2]:
+        trend = data.get("trend", "new")
+        avg_score = data.get("avg_score", 0)
+        count = data.get("count", 0)
+        rounds = (
+            data.get("rounds", []) if isinstance(data.get("rounds", []), list) else []
+        )
+        confidence = "high" if count >= 4 else "medium" if count >= 2 else "low"
+        focus_items.append(f"{name}（趋势: {trend}，平均得分: {avg_score}/10）")
+        evidence_cards.append(
+            {
+                "dimension": name,
+                "signal": "weakness_trend",
+                "count": count,
+                "avg_score": avg_score,
+                "trend": trend,
+                "rounds": rounds,
+                "confidence": confidence,
+                "source": "interview_ai_analysis",
+            }
+        )
+
+    action_suggestions: list[str] = []
+    if key_weaknesses:
+        action_suggestions.append(
+            f"优先针对「{key_weaknesses[0]}」做 1~2 周的专项训练并记录复盘结果"
+        )
+    if len(key_weaknesses) > 1:
+        action_suggestions.append(
+            f"将「{key_weaknesses[1]}」拆成可演练的 3 个高频问答脚本"
+        )
+    if profile.skills and isinstance(profile.skills, list):
+        action_suggestions.append(
+            f"围绕目标岗位补强技能叙事：{', '.join(profile.skills[:3])}"
+        )
+
+    headline_parts: list[str] = []
+    if profile.interview_count:
+        headline_parts.append(f"已累计 {profile.interview_count} 次面试")
+    if key_strengths:
+        headline_parts.append(f"优势集中在 {', '.join(key_strengths[:2])}")
+    if key_weaknesses:
+        headline_parts.append(f"当前短板为 {', '.join(key_weaknesses[:2])}")
+
+    return {
+        "version": "2.0",
+        "generated_at": datetime.utcnow().isoformat(),
+        "headline": "；".join(headline_parts)
+        if headline_parts
+        else "画像数据不足，先完成一次复盘后可生成参考画像",
+        "interview_count": profile.interview_count,
+        "career_direction": profile.career_direction,
+        "key_strengths": key_strengths,
+        "key_weaknesses": key_weaknesses,
+        "focus_items": focus_items,
+        "action_suggestions": action_suggestions,
+        "evidence_cards": evidence_cards,
+    }
 
 
 def _extract_keywords(text: str) -> list[str]:

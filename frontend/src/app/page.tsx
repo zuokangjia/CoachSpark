@@ -27,6 +27,15 @@ interface DashboardStats {
   rejected: number;
   total_interviews: number;
   top_weak_points: [string, number][];
+  day3_metrics?: {
+    prep_completion_rate: number;
+    completed_prep_tasks: number;
+    total_prep_tasks: number;
+    recent_avg_score: number;
+    previous_avg_score: number;
+    score_improvement: number;
+    scored_interviews: number;
+  };
 }
 
 interface TodayBriefing {
@@ -57,12 +66,6 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [todayBrief, setTodayBrief] = useState<TodayBriefing | null>(null);
 
-  useEffect(() => {
-    fetchCompanies();
-    loadStats();
-    loadTodayBrief();
-  }, []);
-
   async function loadStats() {
     try {
       const res = await dashboardApi.stats();
@@ -80,6 +83,15 @@ export default function DashboardPage() {
       // non-blocking
     }
   }
+
+  useEffect(() => {
+    fetchCompanies();
+    const timer = window.setTimeout(() => {
+      void loadStats();
+      void loadTodayBrief();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchCompanies]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -175,6 +187,46 @@ export default function DashboardPage() {
             color="text-brand-text"
             bg="bg-brand-subtle"
           />
+        </div>
+      )}
+
+      {stats?.day3_metrics && (
+        <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <div className="mb-1 text-xs text-text-secondary">Day3 备战完成率</div>
+            <div className="flex items-end justify-between">
+              <div className="text-2xl font-semibold text-text-primary">
+                {stats.day3_metrics.prep_completion_rate}%
+              </div>
+              <div className="text-xs text-text-muted">
+                {stats.day3_metrics.completed_prep_tasks}/{stats.day3_metrics.total_prep_tasks} tasks
+              </div>
+            </div>
+            <div className="mt-2 h-2 rounded-full bg-surface-muted">
+              <div
+                className="h-2 rounded-full bg-brand transition-all"
+                style={{ width: `${Math.min(100, Math.max(0, stats.day3_metrics.prep_completion_rate))}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <div className="mb-1 text-xs text-text-secondary">Day3 复盘改善率</div>
+            <div className="flex items-end justify-between">
+              <div
+                className={cn(
+                  "text-2xl font-semibold",
+                  stats.day3_metrics.score_improvement >= 0 ? "text-success-text" : "text-error-text",
+                )}
+              >
+                {stats.day3_metrics.score_improvement >= 0 ? "+" : ""}
+                {stats.day3_metrics.score_improvement}
+              </div>
+              <div className="text-xs text-text-muted">
+                近3轮 {stats.day3_metrics.recent_avg_score} / 前3轮 {stats.day3_metrics.previous_avg_score}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

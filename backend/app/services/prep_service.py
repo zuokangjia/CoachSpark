@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
@@ -21,9 +23,9 @@ def generate_prep_plan(
     company_id: str,
     target_round: int,
     days_available: int,
-    weak_points: list = None,
-    jd_directions: list = None,
-    interview_chain: list = None,
+    weak_points: list | None = None,
+    jd_directions: list | None = None,
+    interview_chain: list | None = None,
 ) -> dict:
     graph = get_prep_graph()
 
@@ -64,7 +66,7 @@ def generate_prep_plan(
     db.refresh(plan)
 
     return {
-        "id": plan.id,
+        "prep_plan_id": plan.id,
         "daily_tasks": daily_tasks,
     }
 
@@ -79,10 +81,69 @@ def get_latest_prep_plan(db: Session, company_id: str) -> dict | None:
     if not plan:
         return None
     return {
-        "id": plan.id,
+        "prep_plan_id": plan.id,
         "company_id": plan.company_id,
         "target_round": plan.target_round,
         "days_available": plan.days_available,
         "daily_tasks": plan.daily_tasks,
         "created_at": plan.created_at,
+    }
+
+
+def update_prep_task_completion(
+    db: Session,
+    prep_plan_id: str,
+    day: int,
+    task_index: int,
+    completed: bool,
+) -> dict:
+    plan = db.query(PrepPlan).filter(PrepPlan.id == prep_plan_id).first()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Prep plan not found")
+
+    raw_daily_tasks = getattr(plan, "daily_tasks", [])
+    daily_tasks: list[dict[str, Any]] = (
+        raw_daily_tasks if isinstance(raw_daily_tasks, list) else []
+    )
+    target_day = None
+    for item in daily_tasks:
+        if isinstance(item, dict) and int(item.get("day", -1)) == day:
+            target_day = item
+            break
+
+    if not target_day:
+        raise HTTPException(status_code=404, detail="Day task not found")
+
+    tasks = target_day.get("tasks", [])
+    if not isinstance(tasks, list) or task_index >= len(tasks):
+        raise HTTPException(status_code=400, detail="Task index out of range")
+
+    completed_indexes = target_day.get("completed_task_indexes", [])
+    if not isinstance(completed_indexes, list):
+        completed_indexes = []
+
+    normalized_indexes = sorted(
+        {
+            int(idx)
+            for idx in completed_indexes
+            if isinstance(idx, int) and 0 <= idx < len(tasks)
+        }
+    )
+
+    if completed and task_index not in normalized_indexes:
+        normalized_indexes.append(task_index)
+    if not completed and task_index in normalized_indexes:
+        normalized_indexes.remove(task_index)
+
+    normalized_indexes = sorted(normalized_indexes)
+    target_day["completed_task_indexes"] = normalized_indexes
+    target_day["completed"] = len(tasks) > 0 and len(normalized_indexes) == len(tasks)
+
+    setattr(plan, "daily_tasks", daily_tasks)
+    db.commit()
+    db.refresh(plan)
+
+    return {
+        "prep_plan_id": plan.id,
+        "daily_tasks": plan.daily_tasks,
     }

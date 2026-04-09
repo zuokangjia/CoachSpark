@@ -4,8 +4,12 @@ from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.models.company import PrepRequest, PrepResponse
-from app.services.prep_service import generate_prep_plan, get_latest_prep_plan
+from app.models.company import PrepRequest, PrepResponse, PrepTaskUpdateRequest
+from app.services.prep_service import (
+    generate_prep_plan,
+    get_latest_prep_plan,
+    update_prep_task_completion,
+)
 
 limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/prep", tags=["ai"])
@@ -32,3 +36,21 @@ def get_latest(company_id: str, db: Session = Depends(get_db)):
     if not plan:
         return {"daily_tasks": []}
     return plan
+
+
+@router.patch("/{prep_plan_id}/task", response_model=PrepResponse)
+@limiter.limit("60/minute")
+def update_task_completion(
+    request: Request,
+    prep_plan_id: str,
+    data: PrepTaskUpdateRequest,
+    db: Session = Depends(get_db),
+):
+    result = update_prep_task_completion(
+        db=db,
+        prep_plan_id=prep_plan_id,
+        day=data.day,
+        task_index=data.task_index,
+        completed=data.completed,
+    )
+    return result
