@@ -5,7 +5,10 @@ from sqlalchemy.orm import Session
 
 from app.ai.graphs.review_graph import build_review_graph
 from app.services.context_builder import ContextBuilder
-from app.services.profile_service import update_profile_incremental
+from app.services.persona_v2_service import (
+    ingest_review_evidence,
+    rebuild_persona_snapshot,
+)
 from app.db.models import Interview, Company, generate_uuid
 from app.core.logging import logger
 
@@ -36,22 +39,22 @@ def analyze_review(
         context = cb.build_review_context(company_id)
 
     try:
-        result = graph.invoke(
-            {
-                "raw_notes": raw_notes,
-                "company_name": company_name,
-                "position": position,
-                "round_num": round_num,
-                "jd_key_points": jd_key_points or [],
-                "context": context,
-                "questions": [],
-                "weak_points": [],
-                "strong_points": [],
-                "next_round_prediction": [],
-                "interviewer_signals": [],
-                "analysis_complete": False,
-            }
-        )
+        payload = {
+            "raw_notes": raw_notes,
+            "company_name": company_name,
+            "position": position,
+            "round_num": round_num,
+            "jd_key_points": jd_key_points or [],
+            "context": context,
+            "questions": [],
+            "weak_points": [],
+            "strong_points": [],
+            "next_round_prediction": [],
+            "interviewer_signals": [],
+            "analysis_complete": False,
+        }
+
+        result = graph.invoke(payload)
     except Exception as e:
         logger.error(f"Review analysis failed: {e}")
         raise HTTPException(
@@ -134,5 +137,14 @@ def save_review_and_update_profile(
     db.commit()
     db.refresh(interview)
 
-    update_profile_incremental(db, interview.id)
+    ingest_review_evidence(
+        db,
+        interview_id=interview.id,
+        round_num=interview.round,
+        analysis=interview.ai_analysis
+        if isinstance(interview.ai_analysis, dict)
+        else {},
+        raw_notes=interview.raw_notes or "",
+    )
+    rebuild_persona_snapshot(db, source_event_id=interview.id)
     return interview.id
