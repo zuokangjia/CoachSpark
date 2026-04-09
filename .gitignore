@@ -35,3 +35,10 @@ Thumbs.db
 
 # Dev Logs (local docs, not for repo)
 dev-logs/
+
+# IDE / Editor
+.cursor/
+.cursorignore
+AGENTS.md
+RETROSPECTIVE_TEMPLATE.md
+copilot-instructions.md
