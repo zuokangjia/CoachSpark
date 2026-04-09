@@ -13,9 +13,9 @@ router = APIRouter(prefix="/match", tags=["ai"])
 
 @router.post("/", response_model=MatchResponse)
 @limiter.limit("10/minute")
-def run_match(request: Request, data: MatchRequest, db: Session = Depends(get_db)):
+async def run_match(request: Request, data: MatchRequest, db: Session = Depends(get_db)):
     if data.use_stored_resume:
-        result = analyze_match_with_stored_resume(data.jd_text, db)
+        result = await analyze_match_with_stored_resume(data.jd_text, db)
     else:
-        result = analyze_match(data.jd_text, data.resume_text)
+        result = await analyze_match(data.jd_text, data.resume_text)
     return result

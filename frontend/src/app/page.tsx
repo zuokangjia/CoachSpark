@@ -61,7 +61,7 @@ interface TodayBriefing {
 }
 
 export default function DashboardPage() {
-  const { companies, loading, fetchCompanies, moveCompany, removeCompany } = useCompanyStore();
+  const { companies, loading, error, fetchCompanies, moveCompany, removeCompany, clearError } = useCompanyStore();
   const [showModal, setShowModal] = useState(false);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [todayBrief, setTodayBrief] = useState<TodayBriefing | null>(null);
@@ -128,6 +128,12 @@ export default function DashboardPage() {
 
   return (
     <div>
+      {error && (
+        <div className="mb-4 rounded-lg border border-error/50 bg-error-bg px-4 py-3 text-sm text-error-text flex items-center justify-between">
+          <span>{error}</span>
+          <button onClick={clearError} className="text-error-text hover:text-error font-medium">✕</button>
+        </div>
+      )}
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-text-primary">投递看板</h1>

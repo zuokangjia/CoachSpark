@@ -17,24 +17,28 @@ export interface Company {
 interface CompanyState {
   companies: Company[];
   loading: boolean;
+  error: string | null;
   fetchCompanies: () => Promise<void>;
   addCompany: (company: Company) => void;
   updateCompany: (id: string, updates: Partial<Company>) => void;
   removeCompany: (id: string) => void;
   moveCompany: (id: string, newStatus: string) => void;
+  clearError: () => void;
 }
 
 export const useCompanyStore = create<CompanyState>((set) => ({
   companies: [],
   loading: false,
+  error: null,
   fetchCompanies: async () => {
-    set({ loading: true });
+    set({ loading: true, error: null });
     try {
       const { companiesApi } = await import("@/lib/api-client");
       const res = await companiesApi.list();
       set({ companies: res.data, loading: false });
-    } catch {
-      set({ loading: false });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "加载失败，请刷新重试";
+      set({ error: msg, loading: false });
     }
   },
   addCompany: (company) => set((state) => ({ companies: [...state.companies, company] })),
@@ -50,4 +54,5 @@ export const useCompanyStore = create<CompanyState>((set) => ({
     set((state) => ({
       companies: state.companies.map((c) => (c.id === id ? { ...c, status: newStatus } : c)),
     })),
+  clearError: () => set({ error: null }),
 }));

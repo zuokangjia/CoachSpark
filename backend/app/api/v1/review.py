@@ -13,8 +13,8 @@ router = APIRouter(prefix="/review", tags=["ai"])
 
 @router.post("/analyze", response_model=ReviewResponse)
 @limiter.limit("10/minute")
-def run_review(request: Request, data: ReviewRequest, db: Session = Depends(get_db)):
-    result = analyze_review(
+async def run_review(request: Request, data: ReviewRequest, db: Session = Depends(get_db)):
+    result = await analyze_review(
         db=db,
         raw_notes=data.raw_notes,
         company_name=data.company_name,

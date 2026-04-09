@@ -1,3 +1,4 @@
+import asyncio
 from datetime import date
 
 from fastapi import HTTPException
@@ -22,7 +23,7 @@ def get_review_graph():
     return _review_graph
 
 
-def analyze_review(
+async def analyze_review(
     db: Session,
     raw_notes: str,
     company_name: str = "",
@@ -54,7 +55,7 @@ def analyze_review(
             "analysis_complete": False,
         }
 
-        result = graph.invoke(payload)
+        result = await asyncio.to_thread(graph.invoke, payload)
     except Exception as e:
         logger.error(f"Review analysis failed: {e}")
         raise HTTPException(

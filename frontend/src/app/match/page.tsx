@@ -26,6 +26,7 @@ export default function MatchPage() {
   const [position, setPosition] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
   const [useStoredResume, setUseStoredResume] = useState(true);
   const [hasResume, setHasResume] = useState(false);
   const [resumeLoading, setResumeLoading] = useState(true);
@@ -54,26 +55,27 @@ export default function MatchPage() {
   async function handleAnalyze(e: React.FormEvent) {
     e.preventDefault();
     if (!jdText.trim()) {
-      alert("请粘贴岗位描述");
+      setError("请粘贴岗位描述");
       return;
     }
 
     setLoading(true);
     setResult(null);
+    setError(null);
     try {
       const payload: any = {
         jd_text: jdText.trim(),
         use_stored_resume: useStoredResume && hasResume,
       };
       if (!useStoredResume || !hasResume) {
-        alert("请先在「个人简历」页面填写你的简历信息，或在下方手动粘贴简历");
+        setError("请先在「个人简历」页面填写你的简历信息，或在下方手动粘贴简历");
         setLoading(false);
         return;
       }
       const res = await matchApi.analyze(payload);
       setResult(res.data);
     } catch {
-      alert("分析失败，请重试");
+      setError("分析失败，请重试");
     } finally {
       setLoading(false);
     }
@@ -81,7 +83,7 @@ export default function MatchPage() {
 
   async function handleAddToBoard() {
     if (!companyName.trim() || !position.trim()) {
-      alert("请填写公司名和岗位名");
+      setError("请填写公司名和岗位名");
       return;
     }
     try {
@@ -93,7 +95,7 @@ export default function MatchPage() {
       });
       router.push("/");
     } catch {
-      alert("添加失败");
+      setError("添加失败");
     }
   }
 
@@ -115,6 +117,11 @@ export default function MatchPage() {
       </div>
 
       <form onSubmit={handleAnalyze} className="mb-8 rounded-xl border border-border bg-surface p-6">
+        {error && (
+          <div className="mb-4 rounded-lg border border-error/50 bg-error-bg px-4 py-3 text-sm text-error-text">
+            {error}
+          </div>
+        )}
         <div className="mb-4 flex items-center gap-2 rounded-lg bg-brand-subtle px-4 py-3 text-sm text-brand-text">
           <User className="h-4 w-4 shrink-0" />
           {resumeLoading ? (

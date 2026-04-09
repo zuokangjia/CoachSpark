@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any
 
 from fastapi import HTTPException
@@ -18,7 +19,7 @@ def get_prep_graph():
     return _prep_graph
 
 
-def generate_prep_plan(
+async def generate_prep_plan(
     db: Session,
     company_id: str,
     target_round: int,
@@ -33,7 +34,8 @@ def generate_prep_plan(
     context = cb.build_prep_context(company_id)
 
     try:
-        result = graph.invoke(
+        result = await asyncio.to_thread(
+            graph.invoke,
             {
                 "company_id": company_id,
                 "target_round": target_round,

@@ -1,3 +1,4 @@
+import asyncio
 from sqlalchemy.orm import Session
 
 from fastapi import HTTPException
@@ -80,10 +81,11 @@ def build_resume_text_from_model(resume: Resume) -> str:
     return "\n".join(parts)
 
 
-def analyze_match(jd_text: str, resume_text: str) -> dict:
+async def analyze_match(jd_text: str, resume_text: str) -> dict:
     graph = get_match_graph()
     try:
-        result = graph.invoke(
+        result = await asyncio.to_thread(
+            graph.invoke,
             {
                 "jd_text": jd_text,
                 "resume_text": resume_text,
@@ -93,7 +95,7 @@ def analyze_match(jd_text: str, resume_text: str) -> dict:
                 "strengths": [],
                 "gaps": [],
                 "suggestions": [],
-            }
+            },
         )
     except Exception as e:
         logger.error(f"Match analysis failed: {e}")
@@ -109,9 +111,9 @@ def analyze_match(jd_text: str, resume_text: str) -> dict:
     }
 
 
-def analyze_match_with_stored_resume(jd_text: str, db: Session) -> dict:
+async def analyze_match_with_stored_resume(jd_text: str, db: Session) -> dict:
     resume = db.query(Resume).first()
     if not resume:
-        return analyze_match(jd_text, "")
+        return await analyze_match(jd_text, "")
     resume_text = build_resume_text_from_model(resume)
-    return analyze_match(jd_text, resume_text)
+    return await analyze_match(jd_text, resume_text)

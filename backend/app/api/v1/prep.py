@@ -17,8 +17,8 @@ router = APIRouter(prefix="/prep", tags=["ai"])
 
 @router.post("/generate", response_model=PrepResponse)
 @limiter.limit("10/minute")
-def run_prep(request: Request, data: PrepRequest, db: Session = Depends(get_db)):
-    result = generate_prep_plan(
+async def run_prep(request: Request, data: PrepRequest, db: Session = Depends(get_db)):
+    result = await generate_prep_plan(
         db=db,
         company_id=data.company_id,
         target_round=data.target_round,
