@@ -38,7 +38,7 @@ def get_latest(company_id: str, db: Session = Depends(get_db)):
     return plan
 
 
-@router.patch("/{prep_plan_id}/task", response_model=PrepResponse)
+@router.patch("/{prep_plan_id}/task")
 @limiter.limit("60/minute")
 def update_task_completion(
     request: Request,

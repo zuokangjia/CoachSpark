@@ -1,4 +1,5 @@
 import asyncio
+import copy
 from typing import Any
 
 from fastapi import HTTPException
@@ -105,7 +106,7 @@ def update_prep_task_completion(
 
     raw_daily_tasks = getattr(plan, "daily_tasks", [])
     daily_tasks: list[dict[str, Any]] = (
-        raw_daily_tasks if isinstance(raw_daily_tasks, list) else []
+        copy.deepcopy(raw_daily_tasks) if isinstance(raw_daily_tasks, list) else []
     )
     target_day = None
     for item in daily_tasks:
@@ -134,7 +135,7 @@ def update_prep_task_completion(
 
     if completed and task_index not in normalized_indexes:
         normalized_indexes.append(task_index)
-    if not completed and task_index in normalized_indexes:
+    elif not completed and task_index in normalized_indexes:
         normalized_indexes.remove(task_index)
 
     normalized_indexes = sorted(normalized_indexes)
@@ -143,9 +144,8 @@ def update_prep_task_completion(
 
     setattr(plan, "daily_tasks", daily_tasks)
     db.commit()
-    db.refresh(plan)
 
     return {
         "prep_plan_id": plan.id,
-        "daily_tasks": plan.daily_tasks,
+        "daily_tasks": daily_tasks,
     }

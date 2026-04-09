@@ -12,25 +12,24 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 @router.get("/stats")
 def get_dashboard_stats(db: Session = Depends(get_db)):
-    companies = db.query(Company).all()
-    interviews = db.query(Interview).all()
-    prep_plans = db.query(PrepPlan).all()
+    # Only fetch columns actually needed to avoid loading full model instances
+    company_statuses = db.query(Company.status).all()
+    interview_analyses = db.query(Interview.ai_analysis).all()
+    prep_plan_tasks = db.query(PrepPlan.daily_tasks).all()
 
-    status_counts: Counter[str] = Counter(
-        str(getattr(c, "status", "")) for c in companies
-    )
+    status_counts: Counter[str] = Counter(str(s) for (s,) in company_statuses)
 
     all_weak: dict[str, int] = {}
-    for iv in interviews:
-        analysis = iv.ai_analysis if isinstance(iv.ai_analysis, dict) else {}
+    for (analysis_json,) in interview_analyses:
+        analysis = analysis_json if isinstance(analysis_json, dict) else {}
         for wp in analysis.get("weak_points", []):
             all_weak[wp] = all_weak.get(wp, 0) + 1
 
     top_weak = sorted(all_weak.items(), key=lambda x: x[1], reverse=True)[:5]
 
     scored_interviews: list[float] = []
-    for iv in interviews:
-        analysis = iv.ai_analysis if isinstance(iv.ai_analysis, dict) else {}
+    for (analysis_json,) in interview_analyses:
+        analysis = analysis_json if isinstance(analysis_json, dict) else {}
         questions = analysis.get("questions", [])
         if not isinstance(questions, list) or not questions:
             continue
@@ -57,8 +56,8 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
 
     total_prep_tasks = 0
     completed_prep_tasks = 0
-    for plan in prep_plans:
-        daily_tasks = plan.daily_tasks if isinstance(plan.daily_tasks, list) else []
+    for (daily_tasks_json,) in prep_plan_tasks:
+        daily_tasks = daily_tasks_json if isinstance(daily_tasks_json, list) else []
         for day in daily_tasks:
             if not isinstance(day, dict):
                 continue
@@ -89,11 +88,11 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     )
 
     return {
-        "total_companies": len(companies),
+        "total_companies": len(company_statuses),
         "applied": status_counts.get("applied", 0),
         "interviewing": status_counts.get("interviewing", 0),
         "rejected": status_counts.get("rejected", 0),
-        "total_interviews": len(interviews),
+        "total_interviews": len(interview_analyses),
         "top_weak_points": top_weak,
         "day3_metrics": {
             "prep_completion_rate": prep_completion_rate,

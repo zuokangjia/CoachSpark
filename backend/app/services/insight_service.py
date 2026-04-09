@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.db.models import Company, Interview
@@ -6,7 +7,7 @@ from app.db.models import Company, Interview
 def analyze_rejection(db: Session, company_id: str) -> dict:
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
-        return {"error": "Company not found"}
+        raise HTTPException(status_code=404, detail="Company not found")
 
     interviews = (
         db.query(Interview)

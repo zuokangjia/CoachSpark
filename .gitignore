@@ -39,6 +39,7 @@ Thumbs.db
 dev-logs/
 
 # IDE / Editor
+.claude/
 .cursor/
 .cursorignore
 AGENTS.md
