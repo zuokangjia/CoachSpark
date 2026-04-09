@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { resumeApi } from "@/lib/api-client";
+import { personaV2Api, profileApi, resumeApi } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import {
   User,
@@ -17,13 +17,82 @@ import {
   ArrowLeft,
   Save,
   X,
+  Sparkles,
+  Target,
+  TrendingUp,
 } from "lucide-react";
+
+type PersonaReference = {
+  snapshot_id?: string;
+  version?: string;
+  generated_at?: string;
+  headline: string;
+  dimensions?: {
+    dimension: string;
+    level: number;
+    trend: "up" | "down" | "stable" | "new";
+    confidence: number;
+    evidence_count: number;
+  }[];
+  key_strengths: string[];
+  key_weaknesses: string[];
+  action_suggestions: string[];
+};
+
+type ExplainEvidence = {
+  id: string;
+  source_type: string;
+  source_id: string;
+  quote_text: string;
+  score: number;
+  confidence: number;
+  event_time: string;
+  signal_type: string;
+};
+
+type ExplainResult = {
+  dimension: string;
+  level: number;
+  trend: string;
+  confidence: number;
+  evidence: ExplainEvidence[];
+};
+
+type SnapshotItem = {
+  snapshot_id: string;
+  version: string;
+  headline: string;
+  generated_at: string;
+  source_event_id?: string;
+};
+
+type SnapshotCompareResult = {
+  base_snapshot_id: string;
+  target_snapshot_id: string;
+  base_generated_at?: string;
+  target_generated_at?: string;
+  base_headline?: string;
+  target_headline?: string;
+  summary: string;
+  changes: {
+    dimension: string;
+    change_type: "added" | "removed" | "updated";
+    base_level?: number | null;
+    target_level?: number | null;
+    delta_level?: number | null;
+    base_confidence?: number | null;
+    target_confidence?: number | null;
+    delta_confidence?: number | null;
+    base_trend?: string;
+    target_trend?: string;
+  }[];
+};
 
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [activeTab, setActiveTab] = useState<"basic" | "education" | "work" | "projects" | "skills">("basic");
+  const [activeTab, setActiveTab] = useState<"basic" | "education" | "work" | "projects" | "skills" | "persona">("basic");
 
   // Basic
   const [full_name, setFullName] = useState("");
@@ -41,6 +110,74 @@ export default function ProfilePage() {
   const [certifications, setCertifications] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState("");
   const [certInput, setCertInput] = useState("");
+
+  const [personaLoading, setPersonaLoading] = useState(false);
+  const [persona, setPersona] = useState<PersonaReference | null>(null);
+  const [selectedDimension, setSelectedDimension] = useState<string>("");
+  const [explainLoading, setExplainLoading] = useState(false);
+  const [explainResult, setExplainResult] = useState<ExplainResult | null>(null);
+  const [snapshotLoading, setSnapshotLoading] = useState(false);
+  const [snapshots, setSnapshots] = useState<SnapshotItem[]>([]);
+  const [compareBase, setCompareBase] = useState<string>("");
+  const [compareTarget, setCompareTarget] = useState<string>("");
+  const [compareLoading, setCompareLoading] = useState(false);
+  const [compareResult, setCompareResult] = useState<SnapshotCompareResult | null>(null);
+
+  async function loadPersonaReference() {
+      setPersonaLoading(true);
+      try {
+      const res: any = await personaV2Api.latest();
+      setPersona(res.data || null);
+      const firstDimension = res?.data?.dimensions?.[0]?.dimension || "";
+      if (firstDimension) {
+        setSelectedDimension(firstDimension);
+        await loadDimensionExplain(firstDimension);
+      }
+      await loadSnapshots();
+    } catch {
+      setPersona(null);
+    } finally {
+      setPersonaLoading(false);
+    }
+  }
+
+  async function loadSnapshots() {
+    setSnapshotLoading(true);
+    try {
+      const res: any = await personaV2Api.snapshots(20);
+      const items: SnapshotItem[] = Array.isArray(res?.data?.items) ? res.data.items : [];
+      setSnapshots(items);
+      if (!compareBase && items[0]) setCompareBase(items[0].snapshot_id);
+      if (!compareTarget && items[1]) setCompareTarget(items[1].snapshot_id);
+    } finally {
+      setSnapshotLoading(false);
+    }
+  }
+
+  async function runCompare() {
+    if (!compareBase || !compareTarget || compareBase === compareTarget) return;
+    setCompareLoading(true);
+    try {
+      const res: any = await personaV2Api.compare(compareBase, compareTarget);
+      setCompareResult(res.data || null);
+    } catch {
+      setCompareResult(null);
+    } finally {
+      setCompareLoading(false);
+    }
+  }
+
+  async function loadDimensionExplain(dimension: string) {
+    setExplainLoading(true);
+    try {
+      const res: any = await personaV2Api.explain(dimension, 8);
+      setExplainResult(res.data || null);
+    } catch {
+      setExplainResult(null);
+    } finally {
+      setExplainLoading(false);
+    }
+  }
 
   useEffect(() => {
     let mounted = true;
@@ -80,6 +217,8 @@ export default function ProfilePage() {
       .finally(() => {
         setLoading(false);
       });
+
+    loadPersonaReference();
 
     return () => {
       mounted = false;
@@ -169,6 +308,8 @@ export default function ProfilePage() {
         projects: projects.map(({ id, ...rest }) => rest),
       };
       await resumeApi.update(payload);
+      await personaV2Api.rebuild();
+      await loadPersonaReference();
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
@@ -208,6 +349,7 @@ export default function ProfilePage() {
         <TabButton active={activeTab === "work"} onClick={() => setActiveTab("work")} icon={<Briefcase className="h-4 w-4" />} label="工作经历" />
         <TabButton active={activeTab === "projects"} onClick={() => setActiveTab("projects")} icon={<FolderKanban className="h-4 w-4" />} label="项目经验" />
         <TabButton active={activeTab === "skills"} onClick={() => setActiveTab("skills")} icon={<Award className="h-4 w-4" />} label="技能证书" />
+        <TabButton active={activeTab === "persona"} onClick={() => setActiveTab("persona")} icon={<Sparkles className="h-4 w-4" />} label="人物画像" />
       </div>
 
       <div className="rounded-xl border border-border bg-surface p-6">
@@ -426,6 +568,188 @@ export default function ProfilePage() {
                 ))}
                 <input value={certInput} onChange={(e) => setCertInput(e.target.value)} onKeyDown={handleCertKeyDown} placeholder="输入证书并按 Enter 添加" className="w-48 rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus placeholder:text-text-muted" />
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "persona" && (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-border bg-surface/50 p-4">
+              <div className="mb-2 flex items-center gap-2 text-text-primary">
+                <Sparkles className="h-4 w-4 text-brand" />
+                <span className="text-sm font-medium">人物画像参考</span>
+              </div>
+              {!personaLoading && persona?.version && (
+                <p className="mb-2 text-xs text-text-muted">画像版本 {persona.version}{persona.generated_at ? ` · 生成时间 ${new Date(persona.generated_at).toLocaleString("zh-CN")}` : ""}</p>
+              )}
+              {personaLoading ? (
+                <div className="flex items-center gap-2 text-sm text-text-secondary">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  正在生成画像...
+                </div>
+              ) : (
+                <p className="text-sm leading-6 text-text-secondary">{persona?.headline || "暂无画像数据，请先保存简历并完成至少一次面试复盘。"}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="rounded-lg border border-border bg-surface/50 p-4">
+                <div className="mb-2 flex items-center gap-2 text-sm font-medium text-text-primary">
+                  <TrendingUp className="h-4 w-4 text-success" /> 核心优势
+                </div>
+                <div className="space-y-2 text-sm text-text-secondary">
+                  {(persona?.key_strengths || []).length > 0 ? (
+                    persona?.key_strengths.map((item, idx) => <div key={`${item}-${idx}`}>• {item}</div>)
+                  ) : (
+                    <div>暂无数据</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border bg-surface/50 p-4">
+                <div className="mb-2 flex items-center gap-2 text-sm font-medium text-text-primary">
+                  <Target className="h-4 w-4 text-warning" /> 待提升点
+                </div>
+                <div className="space-y-2 text-sm text-text-secondary">
+                  {(persona?.key_weaknesses || []).length > 0 ? (
+                    persona?.key_weaknesses.map((item, idx) => <div key={`${item}-${idx}`}>• {item}</div>)
+                  ) : (
+                    <div>暂无数据</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border bg-surface/50 p-4">
+              <div className="mb-2 text-sm font-medium text-text-primary">能力维度（点击查看证据）</div>
+              <div className="space-y-2 text-sm text-text-secondary">
+                {(persona?.dimensions || []).length > 0 ? (
+                  persona?.dimensions?.map((item, idx) => (
+                    <button
+                      key={`${item.dimension}-${idx}`}
+                      type="button"
+                      onClick={() => {
+                        setSelectedDimension(item.dimension);
+                        loadDimensionExplain(item.dimension);
+                      }}
+                      className={cn(
+                        "w-full rounded-md border px-3 py-2 text-left",
+                        selectedDimension === item.dimension ? "border-brand bg-brand/10 text-text-primary" : "border-border text-text-secondary hover:border-brand/60",
+                      )}
+                    >
+                      <div>{item.dimension}</div>
+                      <div className="mt-1 text-xs text-text-muted">等级 {item.level}/5 · 趋势 {item.trend} · 置信度 {item.confidence} · 证据 {item.evidence_count}</div>
+                    </button>
+                  ))
+                ) : (
+                  <div>暂无数据</div>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border bg-surface/50 p-4">
+              <div className="mb-2 text-sm font-medium text-text-primary">行动建议（可直接执行）</div>
+              <div className="space-y-2 text-sm text-text-secondary">
+                {(persona?.action_suggestions || []).length > 0 ? (
+                  persona?.action_suggestions.map((item, idx) => <div key={`${item}-${idx}`}>• {item}</div>)
+                ) : (
+                  <div>暂无数据</div>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border bg-surface/50 p-4">
+              <div className="mb-2 text-sm font-medium text-text-primary">证据明细 {selectedDimension ? `· ${selectedDimension}` : ""}</div>
+              <div className="space-y-2 text-sm text-text-secondary">
+                {explainLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-text-secondary">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    正在加载证据...
+                  </div>
+                ) : (explainResult?.evidence || []).length > 0 ? (
+                  explainResult?.evidence.map((item, idx) => (
+                    <div key={`${item.id}-${idx}`} className="rounded-md border border-border px-3 py-2">
+                      <div className="text-text-primary">{item.signal_type} · 分数 {item.score} · 置信度 {item.confidence}</div>
+                      <div className="mt-1 text-xs text-text-muted">{item.quote_text}</div>
+                      <div className="mt-1 text-xs text-text-muted">来源 {item.source_type} / {item.source_id} · {item.event_time ? new Date(item.event_time).toLocaleString("zh-CN") : ""}</div>
+                    </div>
+                  ))
+                ) : (
+                  <div>暂无数据</div>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border bg-surface/50 p-4">
+              <div className="mb-2 text-sm font-medium text-text-primary">画像版本对比</div>
+              {snapshotLoading ? (
+                <div className="flex items-center gap-2 text-sm text-text-secondary">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  正在加载快照...
+                </div>
+              ) : snapshots.length === 0 ? (
+                <div className="text-sm text-text-secondary">暂无快照</div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                    <select
+                      value={compareBase}
+                      onChange={(e) => setCompareBase(e.target.value)}
+                      className="rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none"
+                    >
+                      <option value="">选择基准快照</option>
+                      {snapshots.map((s) => (
+                        <option key={`base-${s.snapshot_id}`} value={s.snapshot_id}>
+                          {new Date(s.generated_at).toLocaleString("zh-CN")} · {s.snapshot_id.slice(0, 8)}
+                        </option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={compareTarget}
+                      onChange={(e) => setCompareTarget(e.target.value)}
+                      className="rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none"
+                    >
+                      <option value="">选择目标快照</option>
+                      {snapshots.map((s) => (
+                        <option key={`target-${s.snapshot_id}`} value={s.snapshot_id}>
+                          {new Date(s.generated_at).toLocaleString("zh-CN")} · {s.snapshot_id.slice(0, 8)}
+                        </option>
+                      ))}
+                    </select>
+
+                    <button
+                      type="button"
+                      onClick={runCompare}
+                      disabled={compareLoading || !compareBase || !compareTarget || compareBase === compareTarget}
+                      className="rounded-lg bg-brand px-3 py-2 text-sm font-medium text-text-inverse disabled:opacity-50"
+                    >
+                      {compareLoading ? "对比中..." : "执行对比"}
+                    </button>
+                  </div>
+
+                  {compareResult && (
+                    <div className="mt-3 space-y-2">
+                      <div className="text-xs text-text-muted">{compareResult.summary}</div>
+                      {(compareResult.changes || []).length > 0 ? (
+                        compareResult.changes.map((c, idx) => (
+                          <div key={`${c.dimension}-${idx}`} className="rounded-md border border-border px-3 py-2">
+                            <div className="text-text-primary">{c.dimension} · {c.change_type}</div>
+                            <div className="mt-1 text-xs text-text-muted">
+                              等级 {c.base_level ?? "-"} → {c.target_level ?? "-"}
+                              {typeof c.delta_level === "number" ? `（Δ ${c.delta_level >= 0 ? `+${c.delta_level}` : c.delta_level}）` : ""}
+                              ，置信度 {c.base_confidence ?? "-"} → {c.target_confidence ?? "-"}
+                              {typeof c.delta_confidence === "number" ? `（Δ ${c.delta_confidence >= 0 ? `+${c.delta_confidence}` : c.delta_confidence}）` : ""}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-sm text-text-secondary">无差异</div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
         )}

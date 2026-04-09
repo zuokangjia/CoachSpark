@@ -10,13 +10,16 @@ from slowapi.errors import RateLimitExceeded
 
 from app.config import settings
 from app.api.v1 import api_router
+from app.api.v2 import api_router_v2
 from app.db.session import engine, Base
 from app.core.logging import logger
 
 limiter = Limiter(key_func=get_remote_address)
 
 
-def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+def rate_limit_exceeded_handler(
+    request: Request, exc: RateLimitExceeded
+) -> JSONResponse:
     return JSONResponse(
         status_code=429,
         content={"detail": f"Rate limit exceeded: {exc.detail}"},
@@ -63,6 +66,7 @@ async def log_requests(request: Request, call_next):
 
 
 app.include_router(api_router)
+app.include_router(api_router_v2)
 
 
 @app.get("/health")

@@ -7,6 +7,11 @@ export const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+export const apiV2 = axios.create({
+  baseURL: `${API_URL}/api/v2`,
+  headers: { "Content-Type": "application/json" },
+});
+
 export const companiesApi = {
   list: () => api.get("/companies/"),
   get: (id: string) => api.get(`/companies/${id}`),
@@ -31,18 +36,32 @@ export const matchApi = {
 };
 
 export const reviewApi = {
-  analyze: (data: any) => api.post("/review/analyze", data),
+  analyze: (data: any) => apiV2.post("/review/analyze", data),
 };
 
 export const prepApi = {
   generate: (data: any) => api.post("/prep/generate", data),
   getLatest: (companyId: string) => api.get(`/prep/latest/${companyId}`),
+  updateTaskCompletion: (
+    prepPlanId: string,
+    data: { day: number; task_index: number; completed: boolean },
+  ) => api.patch(`/prep/${prepPlanId}/task`, data),
 };
 
 export const profileApi = {
-  get: () => api.get("/profile/"),
+  get: () => apiV2.get("/persona/latest"),
   rebuild: () => api.post("/profile/rebuild"),
-  summary: () => api.get("/profile/summary"),
+  summary: () => apiV2.get("/persona/latest"),
+  persona: () => apiV2.get("/persona/latest"),
+};
+
+export const personaV2Api = {
+  latest: () => apiV2.get("/persona/latest"),
+  rebuild: () => apiV2.post("/persona/rebuild"),
+  explain: (dimension: string, limit = 10) => apiV2.get(`/persona/explain?dimension=${encodeURIComponent(dimension)}&limit=${limit}`),
+  snapshots: (limit = 20) => apiV2.get(`/persona/snapshots?limit=${limit}`),
+  compare: (baseSnapshotId: string, targetSnapshotId: string) =>
+    apiV2.get(`/persona/compare?base_snapshot_id=${encodeURIComponent(baseSnapshotId)}&target_snapshot_id=${encodeURIComponent(targetSnapshotId)}`),
 };
 
 export const dashboardApi = {

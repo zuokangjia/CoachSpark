@@ -140,3 +140,77 @@ class UserProfile(Base):
     updated_at = Column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
     )
+
+
+class SkillTaxonomy(Base):
+    __tablename__ = "skill_taxonomy"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    canonical_name = Column(String(255), nullable=False, unique=True)
+    aliases = Column(JSON, nullable=False, default=list)
+    category = Column(String(100), nullable=False, default="general")
+    external_refs = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class ProfileEvidence(Base):
+    __tablename__ = "profile_evidence"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), nullable=False)
+    source_type = Column(String(50), nullable=False)
+    source_id = Column(String(36), nullable=True)
+    dimension = Column(String(100), nullable=False)
+    skill_name = Column(String(255), nullable=True, default="")
+    signal_type = Column(String(50), nullable=False)
+    polarity = Column(Integer, nullable=False, default=-1)
+    score = Column(Integer, nullable=False, default=0)
+    confidence = Column(Integer, nullable=False, default=50)
+    round_no = Column(Integer, nullable=True)
+    quote_text = Column(Text, nullable=False, default="")
+    metadata_json = Column(JSON, nullable=False, default=dict)
+    event_time = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_profile_evidence_user_event", "user_id", "event_time"),
+        Index("ix_profile_evidence_user_dimension", "user_id", "dimension"),
+    )
+
+
+class UserSkillState(Base):
+    __tablename__ = "user_skill_state"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), nullable=False)
+    dimension = Column(String(100), nullable=False)
+    skill_name = Column(String(255), nullable=True, default="")
+    level = Column(Integer, nullable=False, default=1)
+    trend = Column(String(50), nullable=False, default="new")
+    confidence = Column(Integer, nullable=False, default=0)
+    evidence_count = Column(Integer, nullable=False, default=0)
+    updated_at = Column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    __table_args__ = (
+        Index("ix_user_skill_state_user", "user_id"),
+        Index("ix_user_skill_state_user_dimension", "user_id", "dimension"),
+    )
+
+
+class UserProfileSnapshot(Base):
+    __tablename__ = "user_profile_snapshot"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), nullable=False)
+    version = Column(String(50), nullable=False, default="v2")
+    headline = Column(Text, nullable=False, default="")
+    summary = Column(JSON, nullable=False, default=dict)
+    generated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    source_event_id = Column(String(36), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_profile_snapshot_user_time", "user_id", "generated_at"),
+    )
