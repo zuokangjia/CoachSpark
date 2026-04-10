@@ -225,3 +225,35 @@ class UserProfileSnapshot(Base):
     __table_args__ = (
         Index("ix_profile_snapshot_user_time", "user_id", "generated_at"),
     )
+
+
+class Notification(Base):
+    """
+    Design: Push Notification System
+    核心设计：
+    - 通知分为不同类型：interview_reminder（面试提醒）、stale_alert（投递过期提醒）
+    - 通过 channel 指定发送通道：webhook（钉钉/企微/飞书）、email
+    - 状态流转：pending -> sent / failed，每次发送记录 sent_at 和 error_msg
+    - 支持 scheduled_at 延迟发送，sent_at 非空表示已发送
+    """
+    __tablename__ = "notifications"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), nullable=False, default="default-user")
+    notif_type = Column(String(50), nullable=False)  # interview_reminder | stale_alert
+    channel = Column(String(20), nullable=False, default="webhook")  # webhook | email
+    status = Column(String(20), nullable=False, default="pending")  # pending | sent | failed
+    title = Column(String(255), nullable=False, default="")
+    content = Column(Text, nullable=False, default="")
+    target_id = Column(String(36), nullable=True)  # company_id / interview_id
+    scheduled_at = Column(DateTime, nullable=True)
+    sent_at = Column(DateTime, nullable=True)
+    error_msg = Column(Text, nullable=True, default="")
+    webhook_url = Column(String(500), nullable=True)
+    metadata_json = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_notifications_user_status", "user_id", "status"),
+        Index("ix_notifications_scheduled", "scheduled_at"),
+    )

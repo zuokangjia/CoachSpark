@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
+
 from sqlalchemy.orm import Session
 from collections import Counter
 
@@ -176,4 +177,109 @@ def get_today_briefing(db: Session = Depends(get_db)):
         "upcoming_interviews": upcoming_interviews,
         "pending_results": pending_list,
         "unreviewed": unreviewed_list,
+    }
+
+
+@router.get("/stale")
+def get_stale_companies(db: Session = Depends(get_db)):
+    """
+    检测所有 next_event_date 已过但仍处于 applied 状态的投递，
+    帮助用户清理积压的投递记录。
+    """
+    today = date.today()
+    stale = (
+        db.query(Company)
+        .filter(
+            Company.status == "applied",
+            Company.next_event_date.isnot(None),
+            Company.next_event_date < today,
+        )
+        .order_by(Company.next_event_date.asc())
+        .all()
+    )
+    return {
+        "total": len(stale),
+        "items": [
+            {
+                "id": c.id,
+                "name": c.name,
+                "position": c.position,
+                "next_event_date": str(c.next_event_date),
+                "days_overdue": (today - c.next_event_date).days,
+                "applied_date": str(c.applied_date) if c.applied_date else None,
+            }
+            for c in stale
+        ],
+    }
+
+
+@router.get("/timeline")
+def get_interview_timeline(
+    months: int = Query(3, ge=1, le=12),
+    db: Session = Depends(get_db),
+):
+    """
+    按月统计面试数量分布，帮助用户了解面试节奏。
+    """
+    today = date.today()
+    start = today - timedelta(days=months * 30)
+
+    interviews = (
+        db.query(Interview)
+        .filter(
+            Interview.interview_date.isnot(None),
+            Interview.interview_date >= start,
+        )
+        .order_by(Interview.interview_date.asc())
+        .all()
+    )
+
+    from collections import defaultdict
+    monthly: dict[str, int] = defaultdict(int)
+    for iv in interviews:
+        if iv.interview_date:
+            key = iv.interview_date.strftime("%Y-%m")
+            monthly[key] += 1
+
+    return {
+        "months": months,
+        "timeline": [
+            {"month": k, "count": v} for k, v in sorted(monthly.items())
+        ],
+    }
+
+
+@router.get("/skill-trend")
+def get_skill_trend(
+    limit: int = Query(10, ge=1, le=50),
+    db: Session = Depends(get_db),
+):
+    """
+    从历史面试分析中提取薄弱点出现频次和得分趋势，
+    帮助用户识别需要持续投入的技能方向。
+    """
+    from app.services.profile_service import get_or_create_profile
+
+    profile = get_or_create_profile(db)
+    weak_points = profile.weak_points if isinstance(profile.weak_points, dict) else {}
+
+    sorted_wp = sorted(
+        weak_points.items(),
+        key=lambda x: x[1].get("count", 0),
+        reverse=True,
+    )[:limit]
+
+    return {
+        "total_dimensions": len(sorted_wp),
+        "items": [
+            {
+                "dimension": name,
+                "count": data.get("count", 0),
+                "avg_score": data.get("avg_score", 0),
+                "trend": data.get("trend", "new"),
+                "first_seen": data.get("first_seen", ""),
+                "last_seen": data.get("last_seen", ""),
+            }
+            for name, data in sorted_wp
+        ],
     }
