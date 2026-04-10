@@ -20,6 +20,17 @@ from app.db.session import Base
 def generate_uuid():
     return str(uuid.uuid4())
 
+"""
+Design: Core Data Models
+核心设计：
+- Company 是核心实体，通过 status 字段驱动状态机（applied -> interviewing -> passed/rejected）
+- Interview 保存每次面试记录，包含 ai_analysis JSON 字段存储 LLM 分析结果
+- ProfileEvidence 是画像证据系统的基础，每条证据关联 source 和 polarity（强弱标志）
+- UserSkillState 聚合某维度的证据，计算 level/trend/confidence
+- UserProfileSnapshot 是时点快照，支持历史对比
+- PrepPlan 通过 daily_tasks JSON 存储按日拆分的备战计划
+"""
+
 
 class Company(Base):
     __tablename__ = "companies"

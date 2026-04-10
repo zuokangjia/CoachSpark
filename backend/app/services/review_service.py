@@ -15,6 +15,13 @@ from app.core.logging import logger
 
 _review_graph = None
 
+"""
+Design: Review Analysis Orchestration
+核心思想：analyze_review 调用 review_graph 分析面试笔记，save_review_and_update_profile
+负责持久化结果并触发 persona 系统更新（证据摄入 + 快照重建）。
+采用异步 LangGraph 调用，避免阻塞 FastAPI 请求。
+"""
+
 
 def get_review_graph():
     global _review_graph

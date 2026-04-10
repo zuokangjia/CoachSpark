@@ -3,6 +3,13 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Company, Interview
 
+"""
+Design: Rejection Insight Analysis
+核心思想：从面试历史中分析被拒原因，识别反复出现的薄弱点。
+输出：可能原因、需保持的优势、下一步重点改进方向、鼓励话语。
+帮助用户在失败中学习，而非简单归因。
+"""
+
 
 def analyze_rejection(db: Session, company_id: str) -> dict:
     company = db.query(Company).filter(Company.id == company_id).first()

@@ -4,6 +4,13 @@ from typing import List, Optional
 from app.db.repository import CompanyRepository
 from app.models.company import CompanyCreate, CompanyUpdate
 
+"""
+Design: Business Logic Service Layer
+核心思想：CompanyService / InterviewService / PrepPlanService 封装 CRUD 操作，
+将数据库访问逻辑从 API 层分离。每个 service 持有对应的 Repository 实例，
+实现关注点分离和可测试性。
+"""
+
 
 class CompanyService:
     def __init__(self, db: Session):

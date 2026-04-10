@@ -6,6 +6,13 @@ from langchain_core.output_parsers import JsonOutputParser
 from app.ai.llm import get_llm
 from app.ai.prompts.match import MATCH_SYSTEM_PROMPT, MATCH_USER_PROMPT
 
+"""
+Design: Resume-JD Matching LangGraph
+核心思想：状态机流水线：extract_jd (JD需求提取) -> extract_resume (简历信息提取)
+-> compare (对比评分) -> suggest (改进建议生成)。
+每一步都基于上一步的输出，通过 TypedDict 维护状态，确保分析逻辑的透明和可追溯。
+"""
+
 
 class MatchState(TypedDict):
     jd_text: str

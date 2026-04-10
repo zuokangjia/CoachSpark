@@ -16,6 +16,12 @@ from app.services.rag_retrieval_service import retrieve_similar_evidence
 
 DEFAULT_USER_ID = "default-user"
 
+"""
+Design: Evidence-Driven Persona System
+核心思想：每次面试复盘生成证据（weak/strong points），证据累积计算技能状态
+(level/trend/confidence)，定期生成快照支持历史对比和RAG增强的解释。
+"""
+
 
 def ingest_review_evidence(
     db: Session,

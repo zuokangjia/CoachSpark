@@ -9,6 +9,14 @@ from app.core.logging import logger
 
 _match_graph = None
 
+"""
+Design: Resume-JD Matching Analysis
+核心思想：从简历和 JD 文本中提取结构化信息，通过 LLM 对比评分，
+输出匹配度百分比、优势列表、差距列表和改进建议。
+支持从数据库加载简历（analyze_match_with_stored_resume），
+也支持直接传入简历文本（analyze_match）。
+"""
+
 
 def get_match_graph():
     global _match_graph

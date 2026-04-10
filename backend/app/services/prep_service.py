@@ -12,6 +12,13 @@ from app.core.logging import logger
 
 _prep_graph = None
 
+"""
+Design: Personalized Prep Plan Generation
+核心思想：根据用户薄弱点和 JD 方向，通过 prep_graph 生成按日拆分的备战计划。
+每日的任务通过优先级和 LLM 推理分配，确保薄弱点优先被覆盖。
+支持任务完成进度跟踪（completed_task_indexes），实现增量更新。
+"""
+
 
 def get_prep_graph():
     global _prep_graph

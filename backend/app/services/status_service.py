@@ -4,6 +4,12 @@ from fastapi import HTTPException
 
 from app.db.models import Company, Offer, generate_uuid
 
+"""
+Design: Company Status State Machine
+核心思想：公司的状态流转是严格受限的，只能沿着 applied -> interviewing -> passed/rejected
+的路径单向移动。passed 状态自动触发 Offer 创建。拒绝状态不可逆。
+通过 VALID_TRANSITIONS 字典声明所有合法转换，防止脏数据。
+"""
 
 VALID_TRANSITIONS = {
     "applied": ["interviewing"],

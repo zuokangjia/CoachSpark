@@ -4,7 +4,19 @@ from app.services.profile_service import get_profile_summary
 from app.db.models import Interview, Company, Resume
 
 
+"""
+Design: LLM Context Enrichment
+核心思想：为 AI 分析构建丰富的上下文信息，包括用户技能、简历摘要、公司信息、
+历史面试弱点趋势等。不同的分析场景（review/prep/match）使用不同的 context 构建逻辑。
+这样可以让 LLM 在分析时具备个性化背景，产生更贴合用户实际情况的建议。
+"""
+
+
 class ContextBuilder:
+    """
+    Context builder for LLM.
+    Builds enriched context from user profile, resume, company info, and interview history.
+    """
     def __init__(self, db: Session):
         self.db = db
 

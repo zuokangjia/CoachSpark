@@ -13,6 +13,14 @@ from app.db.models import ProfileEvidence, generate_uuid
 DEFAULT_USER_ID = "default-user"
 TOP_K_DEFAULT = 5
 
+"""
+Design: Vector Similarity Search for Profile Evidence
+核心思想：利用 embeddings 对 ProfileEvidence 进行向量化存储和检索。
+retrieve_similar_evidence 通过余弦相似度找到与查询最相关的证据。
+当 embedding 不可用时，降级为基于关键词重叠的文本相似度 heuristic。
+embed_evidence_texts 批量为已有证据生成并存储向量。
+"""
+
 
 def _to_embedding(value: Any) -> list[float] | None:
     if value is None:

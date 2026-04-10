@@ -11,6 +11,14 @@ from app.ai.prompts.review import (
     SCORING_RUBRIC,
 )
 
+"""
+Design: Interview Review Analysis LangGraph
+核心思想：状态机流水线：extract (问题提取) -> score (批量评分) -> insights (洞察生成)
+-> predict (下轮预测) -> validate (输出验证) -> finalize (最终整理)。
+extract 和 score 先于 insights 运行，确保评分结果可被洞察生成阶段使用。
+validate 阶段检查完整性，不合格则回流到合适的节点重试。
+"""
+
 
 class ReviewState(TypedDict):
     raw_notes: str

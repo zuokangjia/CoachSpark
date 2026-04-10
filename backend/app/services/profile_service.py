@@ -4,6 +4,13 @@ from datetime import datetime
 
 from app.db.models import UserProfile, Interview, Company, generate_uuid
 
+"""
+Design: Legacy User Profile System (v1)
+核心思想：通过统计历史面试数据（weak_points/strong_points），构建用户技能画像。
+支持全量重建（rebuild_profile）和增量更新（update_profile_incremental）。
+与 v2 的 evidence-based 系统不同，v1 直接聚合面试分析结果，不做证据追溯。
+"""
+
 
 def get_or_create_profile(db: Session) -> UserProfile:
     profile = db.query(UserProfile).first()

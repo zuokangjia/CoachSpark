@@ -7,6 +7,14 @@ from langchain_core.output_parsers import JsonOutputParser
 from app.ai.llm import get_llm
 from app.ai.prompts.prep import PREP_SYSTEM_PROMPT, PREP_USER_PROMPT
 
+"""
+Design: Interview Prep Plan LangGraph
+核心思想：状态机流水线：prioritize (优先级排序) -> extract_jd (JD方向提取)
+-> allocate (按日任务分配) -> details (每日任务细节补全)。
+通过 _promote_weak_points 确保薄弱点在前两天被优先覆盖，
+通过 _normalize_daily_tasks 标准化 LLM 输出，确保数据一致性。
+"""
+
 
 class PrepState(TypedDict):
     company_id: str

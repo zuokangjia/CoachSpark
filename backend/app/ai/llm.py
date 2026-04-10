@@ -5,6 +5,13 @@ from app.config import settings
 _llm_instance = None
 _embedder_instance = None
 
+"""
+Design: LLM Client Singleton
+核心思想：get_llm() / get_embedder() 采用单例模式复用 ChatOpenAI 和 OpenAIEmbeddings 实例，
+避免每次调用都创建新连接。模型、温度、超时等参数统一从 settings 读取，
+实现配置与代码的解耦。
+"""
+
 
 def get_llm() -> ChatOpenAI:
     global _llm_instance

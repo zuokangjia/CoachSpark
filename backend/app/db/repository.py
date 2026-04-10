@@ -5,6 +5,13 @@ from app.db.session import Base
 
 ModelType = TypeVar("ModelType", bound=Base)
 
+"""
+Design: Repository Pattern
+核心思想：BaseRepository 实现通用的 CRUD 操作（get_all/get_by_id/create/update/delete），
+子类 CompanyRepository / InterviewRepository / PrepPlanRepository 继承并扩展特定查询。
+通过泛型 TypeVar 约束模型类型，实现类型安全和代码复用。
+"""
+
 
 class BaseRepository(Generic[ModelType]):
     def __init__(self, model: Type[ModelType], db: Session):
