@@ -24,9 +24,9 @@ async def run_review(request: Request, data: ReviewRequest, db: Session = Depend
         company_id=data.company_id,
     )
 
-    interview_id = None
+    interview_data = None
     if data.company_id:
-        interview_id = save_review_and_update_profile(
+        interview_data = save_review_and_update_profile(
             db=db,
             company_id=data.company_id,
             result=result,
@@ -39,6 +39,7 @@ async def run_review(request: Request, data: ReviewRequest, db: Session = Depend
         )
 
     response_data = {**result}
-    if interview_id:
-        response_data["interview_id"] = interview_id
+    if interview_data:
+        response_data["interview_id"] = interview_data["interview_id"]
+        response_data["dimension_changes"] = interview_data.get("dimension_changes", [])
     return response_data

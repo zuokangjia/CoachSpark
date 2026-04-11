@@ -10,7 +10,7 @@ from app.services.persona_v2_service import (
     ingest_review_evidence,
     rebuild_persona_snapshot,
 )
-from app.db.models import Interview, Company, generate_uuid
+from app.db.models import Interview, Company, UserSkillState, generate_uuid
 from app.core.logging import logger
 
 _review_graph = None
@@ -69,12 +69,23 @@ async def analyze_review(
             status_code=503,
             detail="AI analysis service is temporarily unavailable. Please try again later.",
         )
+
+    # 获取当前画像快照（轻量，不新建 endpoint）
+    from app.services.persona_v2_service import get_latest_persona
+    persona = get_latest_persona(db)
+
     return {
         "questions": result.get("questions", []),
         "weak_points": result.get("weak_points", []),
         "strong_points": result.get("strong_points", []),
         "next_round_prediction": result.get("next_round_prediction", []),
         "interviewer_signals": result.get("interviewer_signals", []),
+        "persona_snapshot": {
+            "headline": persona.get("headline", ""),
+            "key_weaknesses": persona.get("key_weaknesses", [])[:3],
+            "key_strengths": persona.get("key_strengths", [])[:2],
+            "dimensions": persona.get("dimensions", [])[:5],
+        },
     }
 
 
@@ -88,7 +99,12 @@ def save_review_and_update_profile(
     interview_date: str = "",
     interview_format: str = "",
     interviewer: str = "",
-) -> str:
+) -> dict:
+    """
+    Returns dict with:
+      interview_id: 本次关联的面试记录 ID
+      dimension_changes: 本次复盘影响的维度 level 变化
+    """
     interview = None
 
     if interview_id:
@@ -100,6 +116,17 @@ def save_review_and_update_profile(
             .filter(Interview.company_id == company_id, Interview.round == round_num)
             .first()
         )
+
+    # 记录复盘前的维度状态
+    before_dimensions = {}
+    if interview:
+        before_dims = (
+            db.query(UserSkillState)
+            .filter(UserSkillState.user_id == "default-user")
+            .all()
+        )
+        for d in before_dims:
+            before_dimensions[d.dimension] = d.level
 
     if interview:
         interview.raw_notes = raw_notes
@@ -155,4 +182,26 @@ def save_review_and_update_profile(
         raw_notes=interview.raw_notes or "",
     )
     rebuild_persona_snapshot(db, source_event_id=interview.id)
-    return interview.id
+
+    # 计算维度变化
+    after_dims = (
+        db.query(UserSkillState)
+        .filter(UserSkillState.user_id == "default-user")
+        .all()
+    )
+    dimension_changes = []
+    for d in after_dims:
+        before_level = before_dimensions.get(d.dimension)
+        if before_level is not None and before_level != d.level:
+            dimension_changes.append({
+                "dimension": d.dimension,
+                "before": before_level,
+                "after": d.level,
+                "delta": d.level - before_level,
+                "trend": d.trend,
+            })
+
+    return {
+        "interview_id": interview.id,
+        "dimension_changes": dimension_changes,
+    }

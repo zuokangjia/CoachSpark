@@ -80,6 +80,7 @@ export default function ReviewPage() {
   const [fetching, setFetching] = useState(true);
   const [result, setResult] = useState<any>(null);
   const [saved, setSaved] = useState(false);
+  const [persona, setPersona] = useState<any>(null);
 
   useEffect(() => {
     const iid = searchParams.get("interview_id");
@@ -104,6 +105,11 @@ export default function ReviewPage() {
     } else {
       setFetching(false);
     }
+
+    // 加载当前画像（轻量显示用）
+    personaV2Api.latest().then((res) => {
+      setPersona(res.data);
+    }).catch(() => {});
   }, [searchParams, id]);
 
   function addEntry() {
@@ -222,7 +228,7 @@ export default function ReviewPage() {
         返回公司详情
       </Link>
 
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">
             {hasExistingReview ? "复盘结果" : "面试复盘"}
@@ -231,6 +237,10 @@ export default function ReviewPage() {
             第 {round} 轮面试{hasExistingReview ? "分析结果" : "记录与分析"}
           </p>
         </div>
+
+        {viewMode === "form" && persona && (
+          <PersonaMiniCard persona={persona} />
+        )}
         {hasExistingReview && viewMode === "result" && (
           <button
             onClick={() => setViewMode("form")}
@@ -470,6 +480,10 @@ export default function ReviewPage() {
             round={round}
             saved={saved}
           />
+          <DimensionImpactCard
+            changes={(result as any).dimension_changes || []}
+            persona={(result as any).persona_snapshot}
+          />
         </div>
       )}
     </div>
@@ -678,4 +692,74 @@ function getScoreLabel(score: number): string {
   if (score >= 6) return "合格";
   if (score >= 4) return "不足";
   return "薄弱";
+}
+
+// ---------------------------------------------------------------------------
+// Components: Persona Mini Card & Dimension Impact
+// ---------------------------------------------------------------------------
+
+function PersonaMiniCard({ persona }: { persona: any }) {
+  const dimensions = persona?.dimensions || [];
+  const topWeak = persona?.key_weaknesses || [];
+  const topStrong = persona?.key_strengths || [];
+
+  return (
+    <div className="rounded-xl border border-border bg-surface p-4 text-xs">
+      <div className="mb-2 flex items-center gap-1.5">
+        <TrendingUp className="h-3.5 w-3.5 text-brand" />
+        <span className="font-medium text-text-primary">当前画像</span>
+      </div>
+
+      {dimensions.length > 0 ? (
+        <div className="space-y-1.5">
+          {topWeak.slice(0, 2).map((wp: string, i: number) => (
+            <div key={i} className="flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-error" />
+              <span className="text-text-secondary">{wp}</span>
+            </div>
+          ))}
+          {topStrong.slice(0, 1).map((sp: string, i: number) => (
+            <div key={i} className="flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-success" />
+              <span className="text-text-secondary">{sp}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-text-muted">暂无画像数据</p>
+      )}
+    </div>
+  );
+}
+
+function DimensionImpactCard({ changes, persona }: { changes: any[]; persona: any }) {
+  if (!changes || changes.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-brand/30 bg-brand-subtle p-5">
+      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-brand-text">
+        <TrendingUp className="h-4 w-4" />
+        本次复盘对画像的影响
+      </h3>
+      <div className="space-y-2">
+        {changes.map((change: any, i: number) => {
+          const delta = change.delta > 0 ? `+${change.delta}` : `${change.delta}`;
+          const deltaColor = change.delta > 0 ? "text-success" : change.delta < 0 ? "text-error" : "text-text-muted";
+          return (
+            <div key={i} className="flex items-center justify-between rounded-md bg-surface px-3 py-2">
+              <span className="text-sm text-text-primary">{change.dimension}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-text-muted">{change.before} → {change.after}</span>
+                <span className={`text-xs font-medium ${deltaColor}`}>{delta}</span>
+                <span className="text-xs text-text-muted">({change.trend})</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {persona?.headline && (
+        <p className="mt-3 text-xs text-text-secondary">{persona.headline}</p>
+      )}
+    </div>
+  );
 }

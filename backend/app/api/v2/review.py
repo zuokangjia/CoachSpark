@@ -13,8 +13,8 @@ router = APIRouter(prefix="/review", tags=["review-v2"])
 
 @router.post("/analyze", response_model=ReviewResponse)
 @limiter.limit("10/minute")
-def run_review(request: Request, data: ReviewRequest, db: Session = Depends(get_db)):
-    result = analyze_review(
+async def run_review(request: Request, data: ReviewRequest, db: Session = Depends(get_db)):
+    result = await analyze_review(
         db=db,
         raw_notes=data.raw_notes,
         company_name=data.company_name,
@@ -24,9 +24,9 @@ def run_review(request: Request, data: ReviewRequest, db: Session = Depends(get_
         company_id=data.company_id,
     )
 
-    interview_id = None
+    interview_data = None
     if data.company_id:
-        interview_id = save_review_and_update_profile(
+        interview_data = save_review_and_update_profile(
             db=db,
             company_id=data.company_id,
             result=result,
@@ -39,6 +39,7 @@ def run_review(request: Request, data: ReviewRequest, db: Session = Depends(get_
         )
 
     response_data = {**result}
-    if interview_id:
-        response_data["interview_id"] = interview_id
+    if interview_data:
+        response_data["interview_id"] = interview_data["interview_id"]
+        response_data["dimension_changes"] = interview_data.get("dimension_changes", [])
     return response_data
