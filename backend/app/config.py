@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     llm_timeout_seconds: int = 45
     llm_max_retries: int = 1
     app_env: str = "development"
+    # 向量存储后端：False=当前SQLite JSON列（轻量），True=PostgreSQL+pgvector（生产推荐）
+    use_pgvector: bool = False
     cors_origins: List[str] = ["http://localhost:5173"]
 
     class Config:

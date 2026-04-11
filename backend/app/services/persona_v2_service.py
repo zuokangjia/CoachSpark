@@ -78,6 +78,9 @@ def ingest_review_evidence(
 
     if evidence_items:
         db.commit()
+        # 新增 evidence 后自动触发嵌入生成（避免循环导入，延迟导入）
+        from app.services.rag_retrieval_service import embed_evidence_texts
+        embed_evidence_texts(db, user_id=user_id)
 
     return evidence_items
 

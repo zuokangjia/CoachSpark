@@ -180,6 +180,9 @@ class ProfileEvidence(Base):
     round_no = Column(Integer, nullable=True)
     quote_text = Column(Text, nullable=False, default="")
     metadata_json = Column(JSON, nullable=False, default=dict)
+    # 向量列：pgvector 迁移时改为 `vector` 类型（Vector(2048)），存储到这一列而非 metadata_json
+    # 当前 SQLite/JSON 环境下存 JSON 列表字符串，切换 pgvector 后需重建向量数据
+    vector = Column(JSON, nullable=True, default=None)
     event_time = Column(DateTime, nullable=False, default=datetime.utcnow)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
