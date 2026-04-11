@@ -22,7 +22,7 @@ import {
   MessageSquare,
   BookOpen,
 } from "lucide-react";
-import { reviewApi, interviewsApi, companiesApi } from "@/lib/api-client";
+import { reviewApi, interviewsApi, companiesApi, personaV2Api } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 interface ReviewQuestion {
@@ -81,6 +81,9 @@ export default function ReviewPage() {
   const [result, setResult] = useState<any>(null);
   const [saved, setSaved] = useState(false);
   const [persona, setPersona] = useState<any>(null);
+  const [appendMode, setAppendMode] = useState(false);
+  const [analysisStep, setAnalysisStep] = useState(0);
+  const [originalNotes, setOriginalNotes] = useState("");
 
   useEffect(() => {
     const iid = searchParams.get("interview_id");
@@ -93,7 +96,10 @@ export default function ReviewPage() {
         if (iv.interview_date) setInterviewDate(iv.interview_date);
         if (iv.format) setInterviewFormat(iv.format);
         if (iv.interviewer) setInterviewerName(iv.interviewer);
-        if (iv.raw_notes) setNotes(iv.raw_notes);
+        if (iv.raw_notes) {
+          setOriginalNotes(iv.raw_notes);
+          // 如果是追加模式，显示已有笔记但可编辑
+        }
         if (iv.round) setRound(iv.round);
 
         if (iv.ai_analysis && Object.keys(iv.ai_analysis).length > 0) {
@@ -148,13 +154,25 @@ export default function ReviewPage() {
   async function handleAnalyze(e: React.FormEvent) {
     e.preventDefault();
 
-    const rawNotes = mode === "structured" ? buildRawNotes() : notes;
+    let rawNotes = mode === "structured" ? buildRawNotes() : notes;
     if (!rawNotes.trim()) {
       alert(mode === "structured" ? "请至少填写一个问题" : "请填写面试笔记");
       return;
     }
 
+    // 追加模式：拼接原有笔记
+    if (appendMode && originalNotes) {
+      rawNotes = originalNotes + "\n\n[追加笔记]\n" + rawNotes;
+    }
+
     setLoading(true);
+    setAnalysisStep(0);
+
+    // 模拟步骤进度
+    const stepTimer = setInterval(() => {
+      setAnalysisStep(prev => Math.min(prev + 1, 2));
+    }, 3000);
+
     try {
       const payload: Record<string, unknown> = {
         raw_notes: rawNotes.trim(),
@@ -182,7 +200,9 @@ export default function ReviewPage() {
     } catch {
       alert("分析失败，请重试");
     } finally {
+      clearInterval(stepTimer);
       setLoading(false);
+      setAnalysisStep(0);
     }
   }
 
@@ -251,31 +271,44 @@ export default function ReviewPage() {
           </button>
         )}
         {viewMode === "form" && (
-          <div className="flex rounded-lg border border-border bg-surface p-0.5">
-            <button
-              onClick={() => setMode("free")}
-              className={cn(
-                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium",
-                mode === "free"
-                  ? "bg-info-bg text-info-text"
-                  : "text-text-secondary hover:text-text-primary",
-              )}
-            >
-              <FileText className="h-3.5 w-3.5" />
-              自由模式
-            </button>
-            <button
-              onClick={() => setMode("structured")}
-              className={cn(
-                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium",
-                mode === "structured"
-                  ? "bg-info-bg text-info-text"
-                  : "text-text-secondary hover:text-text-primary",
-              )}
-            >
-              <ListTodo className="h-3.5 w-3.5" />
-              结构化模式
-            </button>
+          <div className="flex flex-wrap items-center gap-3">
+            {originalNotes && (
+              <label className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs cursor-pointer hover:bg-surface-secondary">
+                <input
+                  type="checkbox"
+                  checked={appendMode}
+                  onChange={(e) => setAppendMode(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-input-border text-brand focus:ring-brand"
+                />
+                <span className="text-text-secondary">追加到已有笔记</span>
+              </label>
+            )}
+            <div className="flex rounded-lg border border-border bg-surface p-0.5">
+              <button
+                onClick={() => setMode("free")}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium",
+                  mode === "free"
+                    ? "bg-info-bg text-info-text"
+                    : "text-text-secondary hover:text-text-primary",
+                )}
+              >
+                <FileText className="h-3.5 w-3.5" />
+                自由模式
+              </button>
+              <button
+                onClick={() => setMode("structured")}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium",
+                  mode === "structured"
+                    ? "bg-info-bg text-info-text"
+                    : "text-text-secondary hover:text-text-primary",
+                )}
+              >
+                <ListTodo className="h-3.5 w-3.5" />
+                结构化模式
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -468,7 +501,21 @@ export default function ReviewPage() {
         <div className="flex flex-col items-center justify-center py-16 text-text-muted">
           <Loader2 className="mb-3 h-8 w-8 animate-spin text-brand" />
           <p className="text-sm">AI 正在分析你的面试表现...</p>
-          <p className="mt-1 text-xs text-text-muted">可能需要 30 秒以上</p>
+          <div className="mt-4 flex gap-2">
+            {["分析问题", "评估回答", "生成建议"].map((step, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <div className={cn(
+                  "h-2 w-2 rounded-full",
+                  analysisStep >= i ? "bg-brand" : "bg-surface-muted"
+                )} />
+                <span className={cn(
+                  "text-xs",
+                  analysisStep >= i ? "text-text-primary" : "text-text-muted"
+                )}>{step}</span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-text-muted">可能需要 30 秒以上</p>
         </div>
       )}
 
@@ -662,10 +709,28 @@ function ReviewResultDisplay({
       )}
 
       {saved && (
-        <div className="rounded-xl border border-success/30 bg-success-bg p-4 text-center">
-          <CheckCircle className="mx-auto mb-2 h-6 w-6 text-success" />
-          <p className="text-sm font-medium text-success-text">复盘已保存</p>
-          <div className="mt-3 flex justify-center gap-2">
+        <div className="rounded-xl border border-success/30 bg-success-bg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <CheckCircle className="h-5 w-5 text-success" />
+            <p className="text-sm font-medium text-success-text">复盘已保存到历史记录</p>
+          </div>
+          {weakPoints.length > 0 && (
+            <div className="mb-3 rounded-md bg-surface px-3 py-2">
+              <p className="text-xs text-text-muted mb-1.5">以下薄弱点将自动带入备战计划：</p>
+              <div className="flex flex-wrap gap-1.5">
+                {weakPoints.slice(0, 5).map((wp: string, i: number) => (
+                  <span key={i} className="inline-flex items-center gap-1 rounded-full bg-error-bg px-2 py-0.5 text-xs text-error-text">
+                    <TrendingDown className="h-3 w-3" />
+                    {wp}
+                  </span>
+                ))}
+                {weakPoints.length > 5 && (
+                  <span className="text-xs text-text-muted">+{weakPoints.length - 5} more</span>
+                )}
+              </div>
+            </div>
+          )}
+          <div className="flex justify-center gap-2">
             <Link
               href={`/company/${companyId}`}
               className="inline-flex items-center gap-1.5 rounded-lg border border-success px-4 py-2 text-sm font-medium text-success-text hover:bg-success-bg/80"

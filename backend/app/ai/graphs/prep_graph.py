@@ -265,6 +265,10 @@ def extract_jd_directions(state: PrepState) -> dict:
 
 
 def allocate_tasks_by_day(state: PrepState) -> dict:
+    """
+    单次 LLM 调用生成完整备战计划。
+    优化：合并 allocate + details 为一次调用，减少网络延迟。
+    """
     llm = get_llm()
     context = state.get("context", "")
     context_section = f"\n\n## 用户历史上下文\n{context}" if context else ""
@@ -295,63 +299,22 @@ def allocate_tasks_by_day(state: PrepState) -> dict:
     return {"daily_tasks": normalized}
 
 
-def generate_daily_details(state: PrepState) -> dict:
-    daily_tasks = state.get("daily_tasks", [])
-    if not daily_tasks:
-        return {"daily_tasks": []}
-
-    llm = get_llm()
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                "你是资深面试备战教练。以下是一份逐日备战计划，请为每天的任务补充更具体的细节：推荐具体的学习资源（文章名、文档章节、视频课程名）、具体的练习题目和口头复述的提示。保持原有结构但让每个任务更具可操作性。返回增强后的 daily_tasks JSON 数组。使用中文。",
-            ),
-            (
-                "human",
-                "薄弱点：{weak_points}\nJD 方向：{jd_directions}\n\n当前计划：\n{plan}",
-            ),
-        ]
-    )
-    chain = prompt | llm | JsonOutputParser()
-    enhanced: Any = daily_tasks
-    try:
-        result = chain.invoke(
-            {
-                "weak_points": state.get("weak_points", []),
-                "jd_directions": state.get("jd_directions", []),
-                "plan": str(daily_tasks),
-            }
-        )
-        if isinstance(result, dict):
-            candidate = result.get("daily_tasks", [])
-            enhanced = candidate if isinstance(candidate, list) else daily_tasks
-        elif isinstance(result, list):
-            enhanced = result
-    except Exception:
-        enhanced = daily_tasks
-
-    normalized = _normalize_daily_tasks(
-        enhanced,
-        state.get("days_available", 1),
-        state.get("weak_points", []),
-    )
-    return {"daily_tasks": normalized}
-
-
 def build_prep_graph():
+    """
+    优化后的图：3 节点 -> 2 节点
+    prioritize -> extract_jd -> allocate (END)
+    移除了单独的 details 节点，在 allocate 中直接生成完整计划。
+    """
     from langgraph.graph import StateGraph, END
 
     graph = StateGraph(PrepState)
     graph.add_node("prioritize", prioritize_weak_points)
     graph.add_node("extract_jd", extract_jd_directions)
     graph.add_node("allocate", allocate_tasks_by_day)
-    graph.add_node("details", generate_daily_details)
 
     graph.set_entry_point("prioritize")
     graph.add_edge("prioritize", "extract_jd")
     graph.add_edge("extract_jd", "allocate")
-    graph.add_edge("allocate", "details")
-    graph.add_edge("details", END)
+    graph.add_edge("allocate", END)
 
     return graph.compile()

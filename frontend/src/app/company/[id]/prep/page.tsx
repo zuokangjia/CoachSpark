@@ -3,8 +3,23 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { ArrowLeft, Loader2, Check, Circle, Clock, Zap, Info } from "lucide-react";
+import {
+  ArrowLeft,
+  Loader2,
+  Check,
+  Circle,
+  Clock,
+  Zap,
+  Info,
+  Plus,
+  Trash2,
+  Pencil,
+  GripVertical,
+  Calendar,
+  XCircle,
+} from "lucide-react";
 import { prepApi, companiesApi, profileApi } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
 
 interface DailyTask {
   day: number;
@@ -86,6 +101,10 @@ export default function PrepPage() {
   const [plan, setPlan] = useState<DailyTask[]>([]);
   const [prepPlanId, setPrepPlanId] = useState("");
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
+  const [editingDay, setEditingDay] = useState<number | null>(null);
+  const [editingTasks, setEditingTasks] = useState<string[]>([]);
+  const [addingTaskDay, setAddingTaskDay] = useState<number | null>(null);
+  const [newTaskText, setNewTaskText] = useState("");
 
   const loadExistingData = useCallback(async () => {
     try {
@@ -240,6 +259,11 @@ export default function PrepPage() {
     }
   }
 
+  // 判断上下文来源
+  const hasReviewContext = searchParams.get("weak_points") !== null;
+  const hasAutoWeakPoints = autoWeakPoints.length > 0;
+  const hasAnyWeakPoints = weakPoints.trim().length > 0 || hasAutoWeakPoints;
+
   return (
     <div className="mx-auto max-w-3xl">
       <Link
@@ -250,76 +274,167 @@ export default function PrepPage() {
         返回公司详情
       </Link>
 
-      <h1 className="mb-6 text-2xl font-bold text-text-primary">备战计划</h1>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-text-primary">备战计划</h1>
+        <p className="mt-1 text-sm text-text-secondary">
+          第 {targetRound} 轮面试准备
+          {hasReviewContext && (
+            <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-brand-subtle px-2 py-0.5 text-xs text-brand-text">
+              <Zap className="h-3 w-3" />
+              基于复盘生成
+            </span>
+          )}
+        </p>
+      </div>
 
-      <form onSubmit={handleGenerate} className="mb-8 rounded-xl border border-border bg-surface p-6">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-text-secondary">
-              可用天数
+      {/* 生成配置区 - 有计划时折叠 */}
+      {plan.length === 0 && (
+        <form onSubmit={handleGenerate} className="mb-8 rounded-xl border border-border bg-surface p-6">
+          {/* 目标轮次 */}
+          <div className="mb-5">
+            <label className="mb-2 block text-sm font-medium text-text-secondary">
+              目标轮次
             </label>
-            <input
-              type="number"
-              min={1}
-              max={60}
-              value={daysAvailable}
-              onChange={(e) => setDaysAvailable(Number(e.target.value))}
-              className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus"
+            <div className="flex gap-3">
+              {[1, 2, 3, 4, 5].map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setTargetRound(r)}
+                  className={cn(
+                    "h-10 w-10 rounded-lg border text-sm font-medium transition-colors",
+                    targetRound === r
+                      ? "border-brand bg-brand text-text-inverse"
+                      : "border-border bg-surface text-text-secondary hover:border-brand hover:text-brand"
+                  )}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 薄弱点 - 核心输入 */}
+          <div className="mb-5">
+            <div className="mb-2 flex items-center justify-between">
+              <label className="text-sm font-medium text-text-secondary">
+                薄弱点 <span className="text-error">*</span>
+              </label>
+              {!hasAnyWeakPoints && (
+                <span className="text-xs text-text-muted">输入你想针对性提高的方向</span>
+              )}
+            </div>
+
+            {/* 自动检测的薄弱点 chips */}
+            {hasAutoWeakPoints && (
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {autoWeakPoints.map((wp, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => {
+                      setAutoWeakPoints(autoWeakPoints.filter((_, idx) => idx !== i));
+                      const newList = autoWeakPoints.filter((_, idx) => idx !== i);
+                      setWeakPoints(newList.join(", "));
+                    }}
+                    className="inline-flex items-center gap-1 rounded-full bg-error-bg px-2.5 py-1 text-xs text-error-text hover:bg-error/20"
+                  >
+                    {wp}
+                    <XCircle className="h-3 w-3" />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <textarea
+              value={weakPoints}
+              onChange={(e) => setWeakPoints(e.target.value)}
+              rows={2}
+              placeholder="系统设计, 并发编程, 数据库优化..."
+              className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus placeholder:text-text-muted"
             />
           </div>
-        </div>
 
-        <div className="mt-4">
-          <label className="mb-1 block text-sm font-medium text-text-secondary">
-            薄弱点
-          </label>
-          {autoWeakPoints.length > 0 && (
-            <div className="mb-2 flex items-center gap-1.5 rounded-md bg-brand-subtle px-3 py-1.5 text-xs text-brand-text">
-              <Zap className="h-3 w-3" />
-              已自动填充 {autoWeakPoints.length} 个跨轮次薄弱点
+          {/* JD 方向 - 次要输入 */}
+          <div className="mb-5">
+            <div className="mb-2 flex items-center justify-between">
+              <label className="text-sm font-medium text-text-secondary">
+                岗位重点方向
+              </label>
+              {hasJd ? (
+                <span className="flex items-center gap-1 text-xs text-brand-text">
+                  <Info className="h-3 w-3" />
+                  已从 JD 提取
+                </span>
+              ) : (
+                <span className="text-xs text-text-muted">可选</span>
+              )}
             </div>
-          )}
-          <textarea
-            value={weakPoints}
-            onChange={(e) => setWeakPoints(e.target.value)}
-            rows={3}
-            placeholder="逗号分隔，例如：系统设计, 并发编程, 消息队列"
-            className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus placeholder:text-text-muted"
-          />
-        </div>
-
-        <div className="mt-4">
-          <div className="mb-1 flex items-center justify-between">
-            <label className="text-sm font-medium text-text-secondary">
-              JD 关键方向
-            </label>
-            {hasJd && (
-              <span className="flex items-center gap-1 text-[10px] text-brand-text">
-                <Info className="h-3 w-3" />
-                AI 将自动从 JD 提取
-              </span>
-            )}
+            <textarea
+              value={jdDirections}
+              onChange={(e) => setJdDirections(e.target.value)}
+              rows={2}
+              placeholder={hasJd ? "已在公司 JD 中提取，可补充..." : "核心技术栈、业务场景..."}
+              className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus placeholder:text-text-muted"
+            />
           </div>
-          <textarea
-            value={jdDirections}
-            onChange={(e) => setJdDirections(e.target.value)}
-            rows={3}
-            placeholder={hasJd ? "留空将自动从岗位描述提取，也可手动补充..." : "岗位描述中的核心技术方向..."}
-            className="w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus focus:ring-1 focus:ring-input-focus placeholder:text-text-muted"
-          />
-        </div>
 
-        <div className="mt-4 flex justify-end">
+          {/* 可用天数 */}
+          <div className="mb-5">
+            <label className="mb-2 block text-sm font-medium text-text-secondary">
+              准备时间
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min={3}
+                max={14}
+                value={daysAvailable}
+                onChange={(e) => setDaysAvailable(Number(e.target.value))}
+                className="flex-1"
+              />
+              <span className="w-16 rounded-lg border border-border bg-surface px-3 py-1.5 text-center text-sm text-text-primary">
+                {daysAvailable} 天
+              </span>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={loading || !hasAnyWeakPoints}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-6 py-2.5 text-sm font-medium text-text-inverse hover:bg-brand-hover disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              生成备战计划
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* 有计划时显示快捷操作 */}
+      {plan.length > 0 && (
+        <div className="mb-6 flex gap-3">
           <button
-            type="submit"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              handleGenerate(e as any);
+            }}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-6 py-2.5 text-sm font-medium text-text-inverse hover:bg-brand-hover disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-muted disabled:opacity-50"
           >
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            生成计划
+            <Loader2 className={cn("h-4 w-4", loading ? "animate-spin" : "")} />
+            重新生成
           </button>
+          <Link
+            href={`/company/${id}`}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-muted"
+          >
+            返回公司
+          </Link>
         </div>
-      </form>
+      )}
 
       {loading && (
         <div className="flex flex-col items-center justify-center py-16 text-text-muted">
@@ -340,56 +455,189 @@ export default function PrepPage() {
                   <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-sm font-semibold text-text-inverse">
                     {day.day}
                   </span>
-                  <h3 className="text-sm font-semibold text-text-primary">
-                    {day.focus}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-text-muted" />
+                    <h3 className="text-sm font-semibold text-text-primary">
+                      {day.focus}
+                    </h3>
+                  </div>
                 </div>
-                <span
-                  className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                    priorityColors[day.priority] || "bg-surface-muted text-text-secondary"
-                  }`}
-                >
-                  {priorityLabels[day.priority] || day.priority}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      priorityColors[day.priority] || "bg-surface-muted text-text-secondary"
+                    }`}
+                  >
+                    {priorityLabels[day.priority] || day.priority}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingDay(day.day);
+                      setEditingTasks([...day.tasks]);
+                    }}
+                    className="rounded-md p-1.5 text-text-muted hover:bg-surface-muted hover:text-text-primary"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
-              <ul className="space-y-2">
-                {day.tasks.map((task, i) => {
-                  const key = `${day.day}-${i}`;
-                  const isCompleted = completedTasks.has(key);
-                  const timeMatch = task.match(/\((\d+)\s*(分钟|min)\)/i);
-                  const displayTask = timeMatch ? task.replace(/\s*\(\d+\s*(分钟|min)\)/i, "") : task;
-                  const minutes = timeMatch ? parseInt(timeMatch[1], 10) : null;
 
-                  return (
-                    <li
-                      key={i}
-                      className={`flex items-start gap-2 rounded-md px-2 py-1.5 text-sm ${
-                        isCompleted ? "text-text-muted line-through" : "text-text-secondary"
-                      }`}
-                    >
+              {editingDay === day.day ? (
+                // 编辑模式
+                <div className="space-y-2">
+                  {editingTasks.map((task, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-text-muted" />
+                      <input
+                        type="text"
+                        value={task}
+                        onChange={(e) => {
+                          const updated = [...editingTasks];
+                          updated[i] = e.target.value;
+                          setEditingTasks(updated);
+                        }}
+                        className="flex-1 rounded-lg border border-input-border bg-input-bg px-3 py-1.5 text-sm text-text-primary outline-none focus:border-input-focus"
+                      />
                       <button
                         type="button"
-                        onClick={() => toggleTask(day.day, i)}
-                        className="mt-0.5 shrink-0"
+                        onClick={() => {
+                          const updated = editingTasks.filter((_, idx) => idx !== i);
+                          setEditingTasks(updated);
+                        }}
+                        className="rounded-md p-1 text-text-muted hover:text-error"
                       >
-                        {isCompleted ? (
-                          <Check className="h-4 w-4 text-success" />
-                        ) : (
-                          <Circle className="h-4 w-4 text-text-muted" />
-                        )}
+                        <Trash2 className="h-4 w-4" />
                       </button>
-                      <span className="flex-1">{displayTask}</span>
-                      {minutes && (
-                        <span className="flex shrink-0 items-center gap-0.5 text-xs text-text-muted">
-                          <Clock className="h-3 w-3" />
-                          {minutes}m
-                        </span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-              {day.total_minutes && (
+                    </div>
+                  ))}
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingDay(null);
+                        setEditingTasks([]);
+                      }}
+                      className="flex-1 rounded-lg border border-border px-3 py-1.5 text-xs text-text-secondary hover:bg-surface-muted"
+                    >
+                      取消
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updatedPlan = plan.map((d) =>
+                          d.day === day.day ? { ...d, tasks: editingTasks.filter(Boolean) } : d
+                        );
+                        setPlan(updatedPlan);
+                        setEditingDay(null);
+                        setEditingTasks([]);
+                      }}
+                      className="flex-1 rounded-lg bg-brand px-3 py-1.5 text-xs font-medium text-text-inverse hover:bg-brand-hover"
+                    >
+                      保存
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                // 查看模式
+                <>
+                  <ul className="space-y-2">
+                    {day.tasks.map((task, i) => {
+                      const key = `${day.day}-${i}`;
+                      const isCompleted = completedTasks.has(key);
+                      const timeMatch = task.match(/\((\d+)\s*(分钟|min)\)/i);
+                      const displayTask = timeMatch ? task.replace(/\s*\(\d+\s*(分钟|min)\)/i, "") : task;
+                      const minutes = timeMatch ? parseInt(timeMatch[1], 10) : null;
+
+                      return (
+                        <li
+                          key={i}
+                          className={cn(
+                            "flex items-start gap-2 rounded-md px-2 py-1.5 text-sm",
+                            isCompleted ? "text-text-muted line-through" : "text-text-secondary"
+                          )}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => toggleTask(day.day, i)}
+                            className="mt-0.5 shrink-0"
+                          >
+                            {isCompleted ? (
+                              <Check className="h-4 w-4 text-success" />
+                            ) : (
+                              <Circle className="h-4 w-4 text-text-muted" />
+                            )}
+                          </button>
+                          <span className="flex-1">{displayTask}</span>
+                          {minutes && (
+                            <span className="flex shrink-0 items-center gap-0.5 text-xs text-text-muted">
+                              <Clock className="h-3 w-3" />
+                              {minutes}m
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {addingTaskDay === day.day ? (
+                    <div className="mt-3 flex gap-2">
+                      <input
+                        type="text"
+                        value={newTaskText}
+                        onChange={(e) => setNewTaskText(e.target.value)}
+                        placeholder="输入新任务..."
+                        className="flex-1 rounded-lg border border-input-border bg-input-bg px-3 py-1.5 text-sm text-text-primary outline-none focus:border-input-focus"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && newTaskText.trim()) {
+                            const updatedPlan = plan.map((d) =>
+                              d.day === day.day
+                                ? { ...d, tasks: [...d.tasks, newTaskText.trim()] }
+                                : d
+                            );
+                            setPlan(updatedPlan);
+                            setAddingTaskDay(null);
+                            setNewTaskText("");
+                          }
+                          if (e.key === "Escape") {
+                            setAddingTaskDay(null);
+                            setNewTaskText("");
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (newTaskText.trim()) {
+                            const updatedPlan = plan.map((d) =>
+                              d.day === day.day
+                                ? { ...d, tasks: [...d.tasks, newTaskText.trim()] }
+                                : d
+                            );
+                            setPlan(updatedPlan);
+                          }
+                          setAddingTaskDay(null);
+                          setNewTaskText("");
+                        }}
+                        className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-text-inverse hover:bg-brand-hover"
+                      >
+                        添加
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setAddingTaskDay(day.day)}
+                      className="mt-3 flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-border py-2 text-xs text-text-muted hover:border-brand hover:text-brand"
+                    >
+                      <Plus className="h-4 w-4" />
+                      添加任务
+                    </button>
+                  )}
+                </>
+              )}
+
+              {day.total_minutes && !editingDay && (
                 <div className="mt-3 flex items-center justify-end gap-1 text-xs text-text-muted">
                   <Clock className="h-3 w-3" />
                   总计约 {day.total_minutes} 分钟
