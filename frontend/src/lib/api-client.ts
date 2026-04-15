@@ -81,3 +81,20 @@ export const resumeApi = {
   update: (data: any) => api.put("/resume/", data),
   rebuild: () => api.post("/resume/rebuild"),
 };
+
+export const practiceApi = {
+  list: (queryString?: string) =>
+    apiV2.get(`/practice/questions${queryString ? `?${queryString}` : ""}`),
+  get: (id: string) => apiV2.get(`/practice/questions/${id}`),
+  submit: (id: string, data: { submitted_answer: string; time_spent_seconds?: number }) =>
+    apiV2.post(`/practice/questions/${id}/submit`, data),
+  history: (limit = 20, offset = 0) =>
+    apiV2.get(`/practice/history?limit=${limit}&offset=${offset}`),
+  recommend: (limit = 5) =>
+    apiV2.get(`/practice/recommend?limit=${limit}`),
+  categories: () => apiV2.get("/practice/categories"),
+  importText: (data: { text: string; category_name?: string }) =>
+    apiV2.post("/practice/import-text", data),
+  generateDrill: (data: { topic: string; num_questions?: number }) =>
+    apiV2.post("/practice/generate", data),
+};

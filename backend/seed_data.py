@@ -10,7 +10,7 @@ from datetime import date, timedelta
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app.db.session import SessionLocal, engine, Base
-from app.db.models import Company, Interview, UserProfile, Resume, generate_uuid
+from app.db.models import Company, Interview, UserProfile, Resume, QuestionCategory, Question, generate_uuid
 
 Base.metadata.create_all(bind=engine)
 db = SessionLocal()
@@ -21,6 +21,206 @@ def add_iv(**kwargs):
     iv = Interview(**kwargs)
     db.add(iv)
     return iv
+
+
+def _seed_questions(db):
+    """Seed question bank with categories and questions (idempotent)."""
+    # Check if already seeded
+    existing_count = db.query(Question).count()
+    if existing_count > 0:
+        print(f"  Questions already seeded ({existing_count} questions found), skipping...")
+        return
+
+    # Categories
+    cat_data = [
+        ("算法", "算法与数据结构相关题目"),
+        ("系统设计", "系统架构与设计题目"),
+        ("React", "React 核心知识"),
+        ("JavaScript", "JavaScript 语言基础与进阶"),
+        ("CSS", "CSS 布局与原理"),
+        ("工程化", "Webpack、Vite 等构建工具"),
+        ("性能优化", "前端性能优化策略"),
+        ("Node.js", "Node.js 运行时与后端相关"),
+    ]
+    categories = {}
+    for name, desc in cat_data:
+        existing = db.query(QuestionCategory).filter(QuestionCategory.name == name).first()
+        if existing:
+            categories[name] = existing
+        else:
+            cat = QuestionCategory(id=generate_uuid(), name=name, description=desc)
+            db.add(cat)
+            categories[name] = cat
+    db.flush()
+
+    questions_data = [
+        # React
+        {
+            "category_name": "React",
+            "title": "React Fiber 架构解决了什么问题？其核心设计是什么？",
+            "content": "详细解释 React Fiber 架构的背景、解决的问题以及核心设计思想。",
+            "answer_template": "1. 解决的问题：同步渲染长时间阻塞主线程，无法中断和恢复\n2. 核心设计：(1) 链表结构替代递归树 (2) 时间切片 (3) 优先级调度 (4) Lane 模型\n3. Fiber 节点结构：child/sibling/return 指针\n4. 渲染流程：render 阶段（可中断）-> commit 阶段（不可中断）",
+            "difficulty": 5,
+            "knowledge_points": ["React Fiber", "React 架构", "时间切片"],
+            "company_tags": ["字节跳动", "Google"],
+            "hints": ["思考为什么需要中断渲染", "链表结构相比递归树有什么优势"],
+        },
+        {
+            "category_name": "React",
+            "title": "React Diff 算法的优化策略有哪些？",
+            "content": "解释 React 的 DOM Diff 算法策略，包括 key 的作用、same-level 比较等。",
+            "answer_template": "1. 三个策略：(1) Web UI 只跨层级移动 (2) 同一层级节点通过 key 判定 (3) 同一节点通过 tag/key 判定类型\n2. Diff 过程：先比较顶层元素，类型不同则销毁重建\n3. 列表 Diff：key 的核心作用是判断元素是否可复用\n4. 常见错误：使用 index 作为 key 导致性能问题",
+            "difficulty": 4,
+            "knowledge_points": ["React Diff", "Virtual DOM", "key 作用"],
+            "company_tags": ["字节跳动", "阿里巴巴"],
+            "hints": ["为什么需要三种策略配合使用", "key 如何影响元素复用"],
+        },
+        {
+            "category_name": "React",
+            "title": "useEffect cleanup 函数的作用是什么？与 componentWillUnmount 有何区别？",
+            "content": "解释 useEffect cleanup 的执行时机，以及与 class 组件生命周期的区别。",
+            "answer_template": "1. 执行时机：下一次 effect 执行前、组件卸载时\n2. 与 componentWillUnmount 区别：cleanup 在每次 effect 执行前运行，componentWillUnmount 只在卸载时运行一次\n3. React 18 StrictMode 会在开发环境双重调用\n4. 常见场景：取消订阅、清除定时器、取消请求",
+            "difficulty": 3,
+            "knowledge_points": ["React Hooks", "useEffect", "生命周期"],
+            "company_tags": ["Google", "腾讯"],
+            "hints": ["考虑依赖变化时的行为", "React 18 有什么特殊行为"],
+        },
+        # JavaScript
+        {
+            "category_name": "JavaScript",
+            "title": "var/let/const 的区别是什么？什么是暂时性死区？",
+            "content": "比较三种变量声明方式的作用域、声明提升和暂时性死区。",
+            "answer_template": "1. var：函数作用域、存在声明提升（初始化不提升）\n2. let：块级作用域、存在暂时性死区（TDZ）\n3. const：块级作用域、不能重新赋值、必须初始化\n4. 暂时性死区：let/const 在声明前访问会报错\n5. 最佳实践：默认使用 const，需要修改时用 let，不用 var",
+            "difficulty": 2,
+            "knowledge_points": ["JavaScript 作用域", "var/let/const", "暂时性死区"],
+            "company_tags": ["Google", "腾讯"],
+            "hints": ["考虑声明提升的具体行为", "块级作用域是什么意思"],
+        },
+        {
+            "category_name": "JavaScript",
+            "title": "闭包是什么？有什么应用场景？有什么可能导致的问题？",
+            "content": "解释 JavaScript 闭包的概念、应用场景以及潜在问题。",
+            "answer_template": "1. 闭包：函数能访问其词法作用域之外的变量\n2. 应用场景：模块化、私有变量、防抖节流、柯里化\n3. 问题：内存泄漏、循环引用、this 指向问题\n4. for 循环中使用 var 的经典问题：所有回调共享同一个 i",
+            "difficulty": 3,
+            "knowledge_points": ["闭包", "作用域", "内存管理"],
+            "company_tags": ["Google", "阿里巴巴"],
+            "hints": ["思考为什么需要闭包来突破作用域限制", "如何用闭包解决循环中的问题"],
+        },
+        {
+            "category_name": "JavaScript",
+            "title": "Promise 与 async/await 的区别是什么？",
+            "content": "比较 Promise 构造函数和 async/await 语法糖的区别和使用场景。",
+            "answer_template": "1. Promise：ES6 引入，then/catch 链式调用\n2. async/await：Promise 的语法糖，更好的可读性\n3. 区别：async/await 让异步代码看起来像同步；try/catch 统一错误处理；await 是阻塞的，Promise.all 可并行\n4. 注意事项：forEach 中 await 会串行执行",
+            "difficulty": 3,
+            "knowledge_points": ["Promise", "async/await", "异步编程"],
+            "company_tags": ["腾讯", "美团"],
+            "hints": ["思考两者在错误处理上的区别", "如何用 async/await 实现 Promise.all 的并行效果"],
+        },
+        # 算法
+        {
+            "category_name": "算法",
+            "title": "手写一个防抖函数，要求支持 immediate 参数",
+            "content": "实现一个防抖函数，功能包括：基础防抖、立即执行选项、取消功能。",
+            "answer_template": "防抖函数关键点：(1) this 绑定 (2) arguments 传递 (3) immediate 模式下先执行再等冷静期 (4) cancel 方法取消待执行的定时器",
+            "difficulty": 3,
+            "knowledge_points": ["防抖", "节流", "手写实现"],
+            "company_tags": ["京东", "阿里巴巴"],
+            "hints": ["考虑如何取消 pending 的定时器", "immediate 为 true 时的行为是什么"],
+        },
+        {
+            "category_name": "算法",
+            "title": "实现一个深拷贝函数，要求处理循环引用",
+            "content": "实现一个深拷贝函数，支持基本类型、对象、数组、日期、正则，并处理循环引用。",
+            "answer_template": "深拷贝关键点：(1) WeakMap 处理循环引用 (2) 类型判断（Date/RegExp等） (3) hasOwnProperty 避免继承属性 (4) 递归处理嵌套对象",
+            "difficulty": 4,
+            "knowledge_points": ["深拷贝", "循环引用", "数据结构"],
+            "company_tags": ["字节跳动", "美团"],
+            "hints": ["为什么需要 WeakMap 而不是普通 Map", "还有哪些类型需要特殊处理"],
+        },
+        # CSS
+        {
+            "category_name": "CSS",
+            "title": "解释 CSS Box Model，什么是 box-sizing: border-box 与 content-box 的区别？",
+            "content": "详细解释 CSS 盒模型的概念，以及两种 box-sizing 值的计算方式的区别。",
+            "answer_template": "1. CSS 盒模型：内容（content）+ 内边距（padding）+ 边框（border）+ 外边距（margin）\n2. content-box（默认）：width = content，padding/border 额外计算\n3. border-box：width = content + padding + border，margin 额外计算\n4. 实际应用：border-box 更符合直觉，常用于组件开发",
+            "difficulty": 2,
+            "knowledge_points": ["CSS Box Model", "box-sizing", "盒模型"],
+            "company_tags": ["京东", "阿里巴巴"],
+            "hints": ["考虑一个 100px 宽的元素 padding 20px 后的实际宽度"],
+        },
+        {
+            "category_name": "CSS",
+            "title": "Flex 布局的原理是什么？常用属性有哪些？",
+            "content": "解释 Flex 布局的工作原理，以及主轴和交叉轴的概念。",
+            "answer_template": "1. 容器属性：display: flex; flex-direction; justify-content; align-items; flex-wrap\n2. 项目属性：flex-grow; flex-shrink; flex-basis; align-self\n3. 主轴与交叉轴：flex-direction 决定主轴方向，交叉轴垂直于主轴",
+            "difficulty": 2,
+            "knowledge_points": ["Flexbox", "CSS 布局", "主轴交叉轴"],
+            "company_tags": ["美团", "京东"],
+            "hints": ["justify-content 和 align-items 分别作用于哪个轴", "flex: 1 1 0 是什么意思"],
+        },
+        # 系统设计
+        {
+            "category_name": "系统设计",
+            "title": "设计一个短视频 Feed 流的前端架构",
+            "content": "考虑性能、体验和工程化角度，设计一个抖音/快手风格的短视频 Feed 系统。",
+            "answer_template": "1. 核心问题：首屏加载、滑动流畅度、预加载与缓存\n2. 列表策略：虚拟列表（只渲染可见区域）、窗口化渲染\n3. 预加载：提前加载下一个视频、预取缩略图\n4. 缓存策略：内存缓存 LRU、磁盘缓存、CDN\n5. 性能指标：首屏 < 1s、FPS 60、TTI < 3s",
+            "difficulty": 5,
+            "knowledge_points": ["系统设计", "Feed 流", "虚拟列表", "性能优化"],
+            "company_tags": ["字节跳动", "Google"],
+            "hints": ["考虑无限滚动场景下 DOM 爆炸问题", "视频的预加载时机如何确定"],
+        },
+        {
+            "category_name": "系统设计",
+            "title": "如何设计一个前端监控 SDK？",
+            "content": "设计一个前端监控 SDK，需要覆盖性能监控、错误追踪和用户行为。",
+            "answer_template": "1. 性能监控：Performance API 获取 FCP/LCP/CLS/FID；Resource Timing API 监控静态资源\n2. 错误追踪：全局 error 事件、unhandledrejection、React ComponentStack\n3. 行为采集：PV/UV、页面停留时长、点击热力图、用户路径\n4. 数据上报：Beacon API / img 标签、采样率控制、批量上报合并",
+            "difficulty": 5,
+            "knowledge_points": ["前端监控", "性能指标", "错误追踪"],
+            "company_tags": ["字节跳动", "阿里巴巴"],
+            "hints": ["Beacon API 相比 xhr 有什么优势", "如何减少监控代码对主线程的影响"],
+        },
+        # Node.js
+        {
+            "category_name": "Node.js",
+            "title": "Node.js Event Loop 的阶段有哪些？setTimeout/setImmediate/process.nextTick 的区别是什么？",
+            "content": "详细解释 Node.js 事件循环的各个阶段，以及三种异步调度的区别。",
+            "answer_template": "1. Event Loop 6个阶段：timers -> pending callbacks -> idle/prepare -> poll -> check -> close callbacks\n2. process.nextTick：在当前阶段结束前调用，优先级高于 setImmediate\n3. setImmediate：在 check 阶段执行\n4. 区别：nextTick 在同阶段开头，setImmediate 在 check 阶段",
+            "difficulty": 4,
+            "knowledge_points": ["Node.js Event Loop", "事件循环", "异步调度"],
+            "company_tags": ["腾讯", "阿里巴巴"],
+            "hints": ["什么场景下 setImmediate 比 setTimeout 先执行", "nextTick 为什么能打断 setImmediate"],
+        },
+        # 性能优化
+        {
+            "category_name": "性能优化",
+            "title": "前端首屏加载优化有哪些策略？",
+            "content": "从渲染原理出发，列举首屏加载优化的各种策略。",
+            "answer_template": "1. 资源优化：代码分割/懒加载、Tree Shaking、压缩混淆、图片优化\n2. 渲染优化：SSR/预渲染/客户端水合、Streaming SSR、内联关键 CSS\n3. 缓存策略：浏览器缓存（Cache-Control/ETag）、Service Worker 缓存、CDN 边缘缓存\n4. 请求优化：DNS 预解析（prefetch）、预连接（preconnect）、资源提示",
+            "difficulty": 4,
+            "knowledge_points": ["性能优化", "首屏优化", "Webpack"],
+            "company_tags": ["Google", "字节跳动"],
+            "hints": ["什么是关键渲染路径", "Streaming SSR 和传统 SSR 有什么区别"],
+        },
+    ]
+
+    for q_data in questions_data:
+        cat = categories.get(q_data["category_name"])
+        if not cat:
+            continue
+        q = Question(
+            id=generate_uuid(),
+            category_id=cat.id,
+            title=q_data["title"],
+            content=q_data["content"],
+            answer_template=q_data["answer_template"],
+            difficulty=q_data["difficulty"],
+            knowledge_points=q_data["knowledge_points"],
+            company_tags=q_data["company_tags"],
+            hints=q_data["hints"],
+        )
+        db.add(q)
+
+    print(f"  Seeded {len(questions_data)} questions in {len(categories)} categories")
 
 
 def create_test_data():
@@ -586,6 +786,11 @@ def create_test_data():
             },
             result_status="rejected",
         )
+
+        db.commit()
+
+        # Seed question bank
+        _seed_questions(db)
 
         db.commit()
         print("=" * 60)

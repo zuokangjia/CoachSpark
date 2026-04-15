@@ -150,10 +150,11 @@ def rebuild_persona_snapshot(
         for s in sorted(states, key=lambda x: x["level"], reverse=True)[:3]
         if s["level"] >= 3
     ]
+    # 薄弱点：取 level 最低的前 3 个（相对薄弱，不设绝对阈值）
+    # 这样即使所有维度 level 都高，也能识别出相对最弱的
     top_weaknesses = [
         s["dimension"]
         for s in sorted(states, key=lambda x: x["level"])[:3]
-        if s["level"] <= 3
     ]
 
     headline_parts: list[str] = []
@@ -227,6 +228,13 @@ def explain_dimension(
     user_id: str = DEFAULT_USER_ID,
     limit: int = 10,
 ) -> dict[str, Any]:
+    """
+    解释单个维度的证据详情。
+
+    返回：
+    - evidence: 向量检索的相似证据（RAG）
+    - evidence_by_source: 按来源分组的证据详情（面试/题目两条线）
+    """
     states = (
         db.query(UserSkillState)
         .filter(
@@ -234,6 +242,8 @@ def explain_dimension(
         )
         .first()
     )
+
+    # 向量检索结果（RAG）
     rag_results = retrieve_similar_evidence(
         db,
         query_text=dimension,
@@ -243,12 +253,63 @@ def explain_dimension(
         min_score=0.1,
     )
 
+    # 按来源分组查询证据（两条线对比）
+    all_evidences = (
+        db.query(ProfileEvidence)
+        .filter(
+            ProfileEvidence.user_id == user_id,
+            ProfileEvidence.dimension == dimension,
+        )
+        .order_by(ProfileEvidence.event_time.desc())
+        .all()
+    )
+
+    evidence_by_source: dict[str, list[dict]] = {}
+    source_stats: dict[str, dict] = {}
+
+    for ev in all_evidences:
+        source = ev.source_type or "unknown"
+        if source not in evidence_by_source:
+            evidence_by_source[source] = []
+            source_stats[source] = {"count": 0, "total_score": 0, "total_confidence": 0}
+
+        evidence_by_source[source].append({
+            "id": ev.id,
+            "source_id": ev.source_id,
+            "signal_type": ev.signal_type,
+            "polarity": ev.polarity,
+            "score": ev.score,
+            "confidence": ev.confidence,
+            "round_no": ev.round_no,
+            "quote_text": ev.quote_text,
+            "event_time": ev.event_time.isoformat() if ev.event_time else None,
+            "metadata": ev.metadata_json or {},
+        })
+        source_stats[source]["count"] += 1
+        source_stats[source]["total_score"] += ev.score
+        source_stats[source]["total_confidence"] += ev.confidence
+
+    # 汇总每条线的统计
+    source_summary = {}
+    for source, stats in source_stats.items():
+        avg_score = round(stats["total_score"] / stats["count"]) if stats["count"] > 0 else 0
+        avg_confidence = round(stats["total_confidence"] / stats["count"]) if stats["count"] > 0 else 0
+        source_label = "面试" if source == "interview" else "题目练习" if source == "question_practice" else source
+        source_summary[source] = {
+            "label": source_label,
+            "count": stats["count"],
+            "avg_score": avg_score,
+            "avg_confidence": avg_confidence,
+        }
+
     return {
         "dimension": dimension,
         "level": states.level if states else 0,
         "trend": states.trend if states else "new",
         "confidence": states.confidence if states else 0,
         "evidence": rag_results,
+        "evidence_by_source": evidence_by_source,
+        "source_summary": source_summary,
     }
 
 

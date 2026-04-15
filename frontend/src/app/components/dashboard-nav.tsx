@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkle, LayoutDashboard, Award, Menu, X, Sun, Moon, User, Target } from "lucide-react";
+import { Sparkle, LayoutDashboard, Award, Menu, X, Sun, Moon, User, Target, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeStore } from "@/lib/store/theme-store";
 import { useMounted } from "./theme-script";
@@ -11,6 +11,7 @@ import { useMounted } from "./theme-script";
 const navItems = [
   { href: "/", label: "投递看板", icon: LayoutDashboard, matchPattern: (path: string) => path === "/" },
   { href: "/match", label: "岗位匹配", icon: Target, matchPattern: (path: string) => path.startsWith("/match") },
+  { href: "/practice", label: "题目练习", icon: BookOpen, matchPattern: (path: string) => path.startsWith("/practice") },
   { href: "/profile", label: "个人简历", icon: User, matchPattern: (path: string) => path.startsWith("/profile") },
   { href: "/offers", label: "Offer 比较", icon: Award, matchPattern: (path: string) => path.startsWith("/offers") },
 ];

@@ -260,3 +260,76 @@ class Notification(Base):
         Index("ix_notifications_user_status", "user_id", "status"),
         Index("ix_notifications_scheduled", "scheduled_at"),
     )
+
+
+class QuestionCategory(Base):
+    """
+    Design: Question Training System - Knowledge Category
+    知识领域分类，支持树形结构（parent_id 自关联）
+    """
+    __tablename__ = "question_categories"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    name = Column(String(100), nullable=False, unique=True)
+    parent_id = Column(String(36), ForeignKey("question_categories.id"), nullable=True)
+    description = Column(Text, nullable=True, default="")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    parent = relationship("QuestionCategory", remote_side=[id], backref="children")
+    questions = relationship("Question", back_populates="category")
+
+
+class Question(Base):
+    """
+    Design: Question Training System - Question Bank
+    题目表：支持多种题型，按知识点/难度/公司标签组织
+    """
+    __tablename__ = "questions"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    category_id = Column(String(36), ForeignKey("question_categories.id"), nullable=False)
+    title = Column(String(255), nullable=False)
+    content = Column(Text, nullable=False)
+    answer_template = Column(Text, nullable=False)
+    difficulty = Column(Integer, nullable=False, default=3)  # 1-5
+    knowledge_points = Column(JSON, nullable=False, default=list)
+    company_tags = Column(JSON, nullable=False, default=list)
+    question_type = Column(String(50), nullable=False, default="open_ended")  # open_ended | multiple_choice
+    options = Column(JSON, nullable=True, default=None)  # 选择题选项
+    hints = Column(JSON, nullable=False, default=list)
+    vector = Column(JSON, nullable=True, default=None)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_questions_category", "category_id"),
+        Index("ix_questions_difficulty", "difficulty"),
+    )
+
+    category = relationship("QuestionCategory", back_populates="questions")
+    performances = relationship("UserQuestionPerformance", back_populates="question")
+
+
+class UserQuestionPerformance(Base):
+    """
+    Design: Question Training System - User Performance Record
+    用户练习表现记录，关联 Question 和画像 Evidence
+    """
+    __tablename__ = "user_question_performance"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), nullable=False)
+    question_id = Column(String(36), ForeignKey("questions.id"), nullable=False)
+    submitted_answer = Column(Text, nullable=False)
+    score = Column(Integer, nullable=False, default=0)  # 0-100
+    feedback = Column(Text, nullable=False, default="")
+    evaluation_details = Column(JSON, nullable=False, default=dict)
+    time_spent_seconds = Column(Integer, nullable=False, default=0)
+    submitted_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_user_question_performance_user", "user_id"),
+        Index("ix_user_question_performance_question", "question_id"),
+    )
+
+    question = relationship("Question", back_populates="performances")

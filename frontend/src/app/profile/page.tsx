@@ -48,6 +48,16 @@ type ExplainEvidence = {
   confidence: number;
   event_time: string;
   signal_type: string;
+  polarity?: number;
+  round_no?: number;
+  metadata?: Record<string, any>;
+};
+
+type SourceSummary = {
+  label: string;
+  count: number;
+  avg_score: number;
+  avg_confidence: number;
 };
 
 type ExplainResult = {
@@ -56,6 +66,8 @@ type ExplainResult = {
   trend: string;
   confidence: number;
   evidence: ExplainEvidence[];
+  evidence_by_source?: Record<string, ExplainEvidence[]>;
+  source_summary?: Record<string, SourceSummary>;
 };
 
 type SnapshotItem = {
@@ -660,24 +672,74 @@ export default function ProfilePage() {
 
             <div className="rounded-lg border border-border bg-surface/50 p-4">
               <div className="mb-2 text-sm font-medium text-text-primary">证据明细 {selectedDimension ? `· ${selectedDimension}` : ""}</div>
-              <div className="space-y-2 text-sm text-text-secondary">
-                {explainLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-text-secondary">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    正在加载证据...
-                  </div>
-                ) : (explainResult?.evidence || []).length > 0 ? (
-                  explainResult?.evidence.map((item, idx) => (
+
+              {explainLoading ? (
+                <div className="flex items-center gap-2 text-sm text-text-secondary">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  正在加载证据...
+                </div>
+              ) : explainResult?.evidence_by_source ? (
+                <div className="space-y-4">
+                  {/* 两条线对比统计 */}
+                  {explainResult.source_summary && Object.keys(explainResult.source_summary).length > 0 && (
+                    <div className="grid grid-cols-2 gap-3">
+                      {Object.entries(explainResult.source_summary).map(([source, stats]) => (
+                        <div key={source} className="rounded-lg bg-surface-muted p-3">
+                          <div className="text-sm font-medium text-text-primary mb-1">{stats.label}</div>
+                          <div className="text-xs text-text-muted">
+                            {stats.count} 条证据 · 平均分 {stats.avg_score} · 置信度 {stats.avg_confidence}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* 按来源分组展示证据 */}
+                  {Object.entries(explainResult.evidence_by_source || {}).map(([source, evidences]) => {
+                    const label = explainResult.source_summary?.[source]?.label || source;
+                    return (
+                      <div key={source}>
+                        <div className="text-xs font-medium text-text-muted mb-2 uppercase tracking-wide">
+                          {label}（{evidences.length} 条）
+                        </div>
+                        <div className="space-y-2">
+                          {evidences.map((item, idx) => (
+                            <div key={`${item.id}-${idx}`} className="rounded-md border border-border px-3 py-2">
+                              <div className="flex items-center gap-2 text-xs">
+                                <span className={cn(
+                                  "px-1.5 py-0.5 rounded text-xs font-medium",
+                                  item.signal_type === "strength" ? "bg-success/20 text-success" : "bg-error/20 text-error"
+                                )}>
+                                  {item.signal_type === "strength" ? "强" : "弱"}
+                                </span>
+                                <span className="text-text-muted">分数 {item.score}</span>
+                                <span className="text-text-muted">置信度 {item.confidence}</span>
+                              </div>
+                              <div className="mt-1 text-xs text-text-muted line-clamp-2">{item.quote_text}</div>
+                              <div className="mt-1 text-xs text-text-muted">
+                                {item.event_time ? new Date(item.event_time).toLocaleString("zh-CN") : ""}
+                                {item.metadata?.from ? ` · ${item.metadata.from}` : ""}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (explainResult?.evidence || []).length > 0 ? (
+                <div className="space-y-2">
+                  {explainResult?.evidence.map((item, idx) => (
                     <div key={`${item.id}-${idx}`} className="rounded-md border border-border px-3 py-2">
                       <div className="text-text-primary">{item.signal_type} · 分数 {item.score} · 置信度 {item.confidence}</div>
                       <div className="mt-1 text-xs text-text-muted">{item.quote_text}</div>
-                      <div className="mt-1 text-xs text-text-muted">来源 {item.source_type} / {item.source_id} · {item.event_time ? new Date(item.event_time).toLocaleString("zh-CN") : ""}</div>
+                      <div className="mt-1 text-xs text-text-muted">来源 {item.source_type} · {item.event_time ? new Date(item.event_time).toLocaleString("zh-CN") : ""}</div>
                     </div>
-                  ))
-                ) : (
-                  <div>暂无数据</div>
-                )}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-text-muted">暂无数据</div>
+              )}
             </div>
 
             <div className="rounded-lg border border-border bg-surface/50 p-4">
