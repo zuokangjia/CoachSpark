@@ -14,6 +14,14 @@ from app.api.v2 import api_router_v2
 from app.db.session import engine, Base
 from app.core.logging import logger
 
+# 导入 embedding 维度检测功能
+try:
+    from app.services.rag_retrieval_service import _detect_vector_dimension
+    EMBEDDING_CHECK_ENABLED = True
+except ImportError:
+    EMBEDDING_CHECK_ENABLED = False
+    logger.warning("无法导入 embedding 维度检测功能")
+
 limiter = Limiter(key_func=get_remote_address)
 
 
@@ -30,6 +38,15 @@ def rate_limit_exceeded_handler(
 async def lifespan(app: FastAPI):
     logger.info("Creating database tables...")
     Base.metadata.create_all(bind=engine)
+    
+    # 检测 embedding 模型维度（仅在启用时）
+    if EMBEDDING_CHECK_ENABLED:
+        try:
+            actual_dim = _detect_vector_dimension()
+            logger.info(f"✅ Embedding 模型维度检测完成: {actual_dim} 维")
+        except Exception as e:
+            logger.warning(f"⚠️  Embedding 维度检测失败（不影响服务启动）: {e}")
+    
     logger.info("CoachSpark API started")
     yield
 

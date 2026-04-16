@@ -1,8 +1,10 @@
 from typing import TypedDict, List, Any
 import json
+import re
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.messages import AIMessage
 
 from app.ai.llm import get_llm
 from app.ai.prompts.review import (
@@ -33,6 +35,74 @@ class ReviewState(TypedDict):
     next_round_prediction: List[str]
     interviewer_signals: List[str]
     analysis_complete: bool
+
+
+def _safe_parse_json(raw_output: Any, default_value: Any = None) -> Any:
+    """
+    安全解析 JSON，提供多层兜底策略
+    
+    Args:
+        raw_output: LLM 的原始输出（可能是字符串、AIMessage 或已解析的对象）
+        default_value: 解析失败时的默认返回值
+    
+    Returns:
+        解析后的 Python 对象，或 default_value
+    """
+    # 如果已经是 Python 对象（dict/list），直接返回
+    if isinstance(raw_output, (dict, list)):
+        return raw_output
+    
+    # 如果是 AIMessage，提取 content
+    if isinstance(raw_output, AIMessage):
+        text_content = raw_output.content
+    elif isinstance(raw_output, str):
+        text_content = raw_output
+    else:
+        return default_value
+    
+    # 策略 1: 尝试直接解析
+    try:
+        return json.loads(text_content)
+    except (json.JSONDecodeError, TypeError):
+        pass
+    
+    # 策略 2: 清理 markdown 代码块标记
+    cleaned = text_content.strip()
+    # 移除 ```json ... ``` 或 ``` ... ```
+    cleaned = re.sub(r'^```(?:json)?\s*', '', cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r'\s*```$', '', cleaned, flags=re.MULTILINE)
+    cleaned = cleaned.strip()
+    
+    try:
+        return json.loads(cleaned)
+    except (json.JSONDecodeError, TypeError):
+        pass
+    
+    # 策略 3: 尝试提取第一个完整的 JSON 对象/数组
+    # 匹配最外层的 { ... } 或 [ ... ]
+    json_pattern = r'(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}|\[[^\[\]]*(?:\[[^\[\]]*\][^\[\]]*)*\])'
+    matches = re.findall(json_pattern, cleaned, re.DOTALL)
+    
+    if matches:
+        # 尝试解析第一个匹配项
+        for match in matches:
+            try:
+                return json.loads(match)
+            except (json.JSONDecodeError, TypeError):
+                continue
+    
+    # 策略 4: 尝试修复常见的 JSON 格式问题
+    try:
+        # 将单引号替换为双引号（简单场景）
+        fixed = cleaned.replace("'", '"')
+        # 处理尾随逗号
+        fixed = re.sub(r',\s*([}\]])', r'\1', fixed)
+        return json.loads(fixed)
+    except (json.JSONDecodeError, TypeError):
+        pass
+    
+    # 所有策略都失败，返回默认值
+    return default_value
 
 
 def _to_clean_text(value: Any) -> str:
@@ -134,13 +204,24 @@ def extract_questions(state: ReviewState) -> dict:
         [
             (
                 "system",
-                "从以下面试笔记中提取所有提到的面试问题和候选人的回答。返回 JSON 数组，每项包含 'question'（面试问题）和 'your_answer_summary'（候选人回答摘要）。如果提到了问题但回答不清楚，your_answer_summary 设为空字符串。使用中文。",
+                "从以下面试笔记中提取所有提到的面试问题和候选人的回答。返回 JSON 数组，每项包含 'question'（面试问题）和 'your_answer_summary'（候选人回答摘要）。如果提到了问题但回答不清楚，your_answer_summary 设为空字符串。使用中文。\n\n**重要：只输出标准 JSON 数组，不要输出任何思考内容、代码格式或解释文字。**",
             ),
             ("human", "{raw_notes}"),
         ]
     )
-    chain = prompt | llm | JsonOutputParser()
-    result = chain.invoke({"raw_notes": state["raw_notes"]})
+    
+    try:
+        # 先尝试使用 JsonOutputParser
+        chain = prompt | llm | JsonOutputParser()
+        result = chain.invoke({"raw_notes": state["raw_notes"]})
+    except Exception as e:
+        # 如果 JsonOutputParser 失败，降级为原始调用 + 安全解析
+        from app.core.logging import logger
+        logger.warning(f"JsonOutputParser failed in extract_questions, falling back to safe parse: {e}")
+        raw_chain = prompt | llm
+        raw_output = raw_chain.invoke({"raw_notes": state["raw_notes"]})
+        result = _safe_parse_json(raw_output, [])
+    
     questions = result if isinstance(result, list) else []
     questions = [q for q in questions if isinstance(q, dict)]
     return {"questions": questions}
@@ -159,7 +240,7 @@ def batch_score_answers(state: ReviewState) -> dict:
         [
             (
                 "system",
-                f"你是资深技术面试官。为以下每道回答打分（1-10 分）。{SCORING_RUBRIC}\n\n返回 JSON 数组，每项包含 'score'（整数）、'assessment'（评分理由，1-2 句话）和 'improvement'（具体可执行的改进建议）。保持与输入问题的顺序一致。使用中文。",
+                f"你是资深技术面试官。为以下每道回答打分（1-10 分）。{SCORING_RUBRIC}\n\n返回 JSON 数组，每项包含 'score'（整数）、'assessment'（评分理由，1-2 句话）和 'improvement'（具体可执行的改进建议）。保持与输入问题的顺序一致。使用中文。\n\n**重要：只输出标准 JSON 数组，不要输出任何思考内容、代码格式或解释文字。**",
             ),
             (
                 "human",
@@ -167,9 +248,10 @@ def batch_score_answers(state: ReviewState) -> dict:
             ),
         ]
     )
-    chain = prompt | llm | JsonOutputParser()
-
+    
     try:
+        # 先尝试使用 JsonOutputParser
+        chain = prompt | llm | JsonOutputParser()
         results = chain.invoke(
             {
                 "jd_context": jd_context,
@@ -178,8 +260,20 @@ def batch_score_answers(state: ReviewState) -> dict:
         )
         if not isinstance(results, list):
             results = []
-    except Exception:
-        results = []
+    except Exception as e:
+        # 如果 JsonOutputParser 失败，降级为原始调用 + 安全解析
+        from app.core.logging import logger
+        logger.warning(f"JsonOutputParser failed in batch_score_answers, falling back to safe parse: {e}")
+        raw_chain = prompt | llm
+        raw_output = raw_chain.invoke(
+            {
+                "jd_context": jd_context,
+                "questions": questions_json,
+            }
+        )
+        results = _safe_parse_json(raw_output, [])
+        if not isinstance(results, list):
+            results = []
 
     scored = []
     for i, q in enumerate(questions):
@@ -217,16 +311,35 @@ def generate_insights(state: ReviewState) -> dict:
             ("human", REVIEW_USER_PROMPT),
         ]
     )
-    chain = prompt | llm | JsonOutputParser()
-    result = chain.invoke(
-        {
-            "company_name": state.get("company_name", ""),
-            "position": state.get("position", ""),
-            "round_num": state.get("round_num", 1),
-            "jd_key_points": state.get("jd_key_points", []),
-            "raw_notes": state.get("raw_notes", ""),
-        }
-    )
+    
+    try:
+        # 先尝试使用 JsonOutputParser
+        chain = prompt | llm | JsonOutputParser()
+        result = chain.invoke(
+            {
+                "company_name": state.get("company_name", ""),
+                "position": state.get("position", ""),
+                "round_num": state.get("round_num", 1),
+                "jd_key_points": state.get("jd_key_points", []),
+                "raw_notes": state.get("raw_notes", ""),
+            }
+        )
+    except Exception as e:
+        # 如果 JsonOutputParser 失败，降级为原始调用 + 安全解析
+        from app.core.logging import logger
+        logger.warning(f"JsonOutputParser failed in generate_insights, falling back to safe parse: {e}")
+        raw_chain = prompt | llm
+        raw_output = raw_chain.invoke(
+            {
+                "company_name": state.get("company_name", ""),
+                "position": state.get("position", ""),
+                "round_num": state.get("round_num", 1),
+                "jd_key_points": state.get("jd_key_points", []),
+                "raw_notes": state.get("raw_notes", ""),
+            }
+        )
+        result = _safe_parse_json(raw_output, {})
+    
     if not isinstance(result, dict):
         return {
             "weak_points": [],

@@ -18,13 +18,14 @@ TOP_K_DEFAULT = 5
 EMBED_BATCH_SIZE = 32  # 批量嵌入每批大小
 EMBED_RETRY_TIMES = 3  # 嵌入重试次数
 EMBED_RETRY_DELAY = 1.0  # 重试间隔（秒）
-VECTOR_DIMENSION = 2048  # embedding-3 向量维度，校验用
+VECTOR_DIMENSION = 1024  # BGE-M3 向量维度
 
 logger = logging.getLogger(__name__)
 
 """
 Design: Vector Similarity Search for Profile Evidence
 核心思想：利用 embeddings 对 ProfileEvidence 进行向量化存储和检索。
+向量维度: VECTOR_DIMENSION 常量定义，当前为 BGE-M3 (1024)。
 retrieve_similar_evidence 通过余弦相似度找到与查询最相关的证据。
 当 embedding 不可用时，降级为基于关键词重叠的文本相似度 heuristic。
 embed_evidence_texts 批量为已有证据生成并存储向量。
@@ -85,10 +86,34 @@ def _validate_vector(vec: list[float], expected_dim: int = VECTOR_DIMENSION) -> 
     """校验向量维度是否与预期一致，不一致则记录警告并返回 False。"""
     if len(vec) != expected_dim:
         logger.warning(
-            f"向量维度不匹配: 期望 {expected_dim}, 实际 {len(vec)}"
+            f"向量维度不匹配: 期望 {expected_dim}, 实际 {len(vec)}。"
+            f"如更换 embedding 模型，请同步修改 VECTOR_DIMENSION 常量（当前: {VECTOR_DIMENSION}）"
         )
         return False
     return True
+
+
+def _detect_vector_dimension(embedder=None) -> int:
+    """
+    动态检测当前 embedding 模型的向量维度。
+    用于在启动时验证配置，或在更换模型后自动更新维度常量。
+    """
+    try:
+        if embedder is None:
+            embedder = get_embedder()
+        # 使用测试文本获取一个向量
+        test_vec = embedder.embed_query("test")
+        actual_dim = len(test_vec)
+        if actual_dim != VECTOR_DIMENSION:
+            logger.warning(
+                f"⚠️ 检测到向量维度与配置不符: "
+                f"配置值={VECTOR_DIMENSION}, 实际值={actual_dim}。"
+                f"请检查 embedding_model 配置或更新 VECTOR_DIMENSION 常量。"
+            )
+        return actual_dim
+    except Exception as e:
+        logger.error(f"向量维度检测失败: {e}")
+        return VECTOR_DIMENSION  # 降级使用配置值
 
 
 def _cosine_sim(a: list[float], b: list[float]) -> float:
