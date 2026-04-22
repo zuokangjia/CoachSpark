@@ -86,15 +86,41 @@ export const practiceApi = {
   list: (queryString?: string) =>
     apiV2.get(`/practice/questions${queryString ? `?${queryString}` : ""}`),
   get: (id: string) => apiV2.get(`/practice/questions/${id}`),
-  submit: (id: string, data: { submitted_answer: string; time_spent_seconds?: number }) =>
-    apiV2.post(`/practice/questions/${id}/submit`, data),
-  history: (limit = 20, offset = 0) =>
-    apiV2.get(`/practice/history?limit=${limit}&offset=${offset}`),
-  recommend: (limit = 5) =>
-    apiV2.get(`/practice/recommend?limit=${limit}`),
   categories: () => apiV2.get("/practice/categories"),
   importText: (data: { text: string; category_name?: string }) =>
     apiV2.post("/practice/import-text", data),
   generateDrill: (data: { topic: string; num_questions?: number }) =>
     apiV2.post("/practice/generate", data),
+  // Knowledge Base APIs
+  listKnowledge: (params?: { category?: string; search?: string }) =>
+    apiV2.get(`/practice/knowledge${params ? `?${new URLSearchParams(params as any).toString()}` : ""}`),
+  createKnowledge: (data: { category?: string; title: string; content?: string; concepts?: string[]; examples?: string[]; tags?: string[] }) =>
+    apiV2.post("/practice/knowledge", data),
+  updateKnowledge: (id: string, data: { category?: string; title?: string; content?: string; concepts?: string[]; examples?: string[]; tags?: string[] }) =>
+    apiV2.put(`/practice/knowledge/${id}`, data),
+  deleteKnowledge: (id: string) =>
+    apiV2.delete(`/practice/knowledge/${id}`),
+  // Eight-Part Template APIs
+  listEightPartTemplates: (params?: { category?: string; difficulty?: number; search?: string }) =>
+    apiV2.get(`/practice/eight-part${params ? `?${new URLSearchParams(params as any).toString()}` : ""}`),
+  getEightPartCategories: () =>
+    apiV2.get("/practice/eight-part/categories"),
+  createEightPartTemplate: (data: { category: string; title: string; content?: string; answer_template?: string; difficulty?: number; tips?: string[] }) =>
+    apiV2.post("/practice/eight-part", data),
+  updateEightPartTemplate: (id: string, data: { category?: string; title?: string; content?: string; answer_template?: string; difficulty?: number; tips?: string[] }) =>
+    apiV2.put(`/practice/eight-part/${id}`, data),
+  deleteEightPartTemplate: (id: string) =>
+    apiV2.delete(`/practice/eight-part/${id}`),
+  // Drill APIs
+  listDrills: (params?: { topic?: string; difficulty?: number }) =>
+    apiV2.get(`/practice/drills${params ? `?${new URLSearchParams(params as any).toString()}` : ""}`),
+  getDrill: (id: string) => apiV2.get(`/practice/drills/${id}`),
+  startDrillSession: (drillId: string) =>
+    apiV2.post(`/practice/drills/${drillId}/start`, {}),
+  submitDrillAnswer: (sessionId: string, data: { answer: string; time_spent_seconds?: number }) =>
+    apiV2.post(`/practice/drills/sessions/${sessionId}/submit`, data),
+  getDrillSessionResult: (sessionId: string) =>
+    apiV2.get(`/practice/drills/sessions/${sessionId}/result`),
+  getDrillHistory: (limit = 20, offset = 0) =>
+    apiV2.get(`/practice/drills/history?limit=${limit}&offset=${offset}`),
 };

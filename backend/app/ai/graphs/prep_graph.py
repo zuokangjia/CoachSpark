@@ -135,6 +135,27 @@ def _promote_weak_points(
     return promoted
 
 
+def _extract_question_knowledge_points(task_text: str) -> List[str]:
+    """从题库练习任务中提取知识点标签
+    
+    匹配格式如：
+    - "完成 2 道 python_async 题库练习"
+    - "完成 3 道微服务架构相关题目"
+    """
+    import re
+    patterns = [
+        r"完成\s*\d+\s*道\s*([a-z_]+)\s*题库练习",
+        r"完成\s*\d+\s*道\s*(.+?)(?:相关|专项)?(?:题目|练习|题库)",
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, task_text, re.IGNORECASE)
+        if match:
+            kp = match.group(1).strip()
+            return [kp]
+    return []
+
+
 def _normalize_daily_tasks(
     raw_tasks: Any,
     days_available: int,
@@ -179,6 +200,16 @@ def _normalize_daily_tasks(
         if total_minutes <= 0:
             total_minutes = 100
         total_minutes = min(240, total_minutes)
+        
+        # 提取知识点标签（用于后续匹配题库题目）
+        knowledge_points = raw.get("knowledge_points", [])
+        if not knowledge_points:
+            # 从任务文本中自动提取
+            for task in tasks:
+                kps = _extract_question_knowledge_points(task)
+                knowledge_points.extend(kps)
+            # 也去重
+            knowledge_points = list(dict.fromkeys(knowledge_points))
 
         normalized_days.append(
             {
@@ -189,6 +220,8 @@ def _normalize_daily_tasks(
                 "total_minutes": total_minutes,
                 "completed_task_indexes": completed_indexes,
                 "completed": completed,
+                "knowledge_points": knowledge_points,  # 新增：关联的知识点
+                "question_ids": raw.get("question_ids", []),  # 新增：关联的题目ID
             }
         )
 
@@ -205,6 +238,8 @@ def _normalize_daily_tasks(
                 "total_minutes": 100,
                 "completed_task_indexes": [],
                 "completed": False,
+                "knowledge_points": [],
+                "question_ids": [],
             }
         ]
 

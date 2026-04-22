@@ -9,8 +9,9 @@ import {
   ArrowLeft,
   Loader2,
   Sparkles,
-  BookOpen,
   Zap,
+  BookOpen,
+  Play,
   ChevronRight,
 } from "lucide-react";
 
@@ -21,25 +22,22 @@ type Category = {
   description: string;
 };
 
-type GeneratedQuestion = {
-  id: string;
-  title: string;
-  content: string;
-  difficulty: number;
-  knowledge_points: string[];
-};
-
-type DrillResult = {
+type GeneratedResult = {
+  drill_id: string;
+  drill_name: string;
   topic: string;
   user_level: number;
   generated_count: number;
-  questions: GeneratedQuestion[];
+  questions: {
+    id: string;
+    title: string;
+    difficulty: number;
+  }[];
 };
 
 const difficultyLabels = ["", "入门", "简单", "中等", "困难", "极难"];
 const difficultyColors = ["", "text-green-500", "text-emerald-500", "text-yellow-500", "text-orange-500", "text-red-500"];
 
-// 根据 level 显示难度建议
 const levelHint: Record<number, string> = {
   1: "基础概念为主",
   2: "基础概念为主",
@@ -57,7 +55,8 @@ export default function TopicDrillPage() {
   const [customTopic, setCustomTopic] = useState("");
   const [numQuestions, setNumQuestions] = useState(3);
   const [generating, setGenerating] = useState(false);
-  const [result, setResult] = useState<DrillResult | null>(null);
+  const [result, setResult] = useState<GeneratedResult | null>(null);
+  const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadCategories = useCallback(async () => {
@@ -98,8 +97,16 @@ export default function TopicDrillPage() {
     }
   }
 
-  function startPractice(questionId: string) {
-    router.push(`/practice/${questionId}`);
+  async function startDrill() {
+    if (!result?.drill_id || starting) return;
+    setStarting(true);
+    try {
+      const res: any = await practiceApi.startDrillSession(result.drill_id);
+      router.push(`/practice/drills/session/${res.data.session_id}`);
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || "启动练习失败");
+      setStarting(false);
+    }
   }
 
   const effectiveTopic = selectedTopic === "custom" ? customTopic.trim() : selectedTopic;
@@ -109,24 +116,23 @@ export default function TopicDrillPage() {
     <div className="mx-auto max-w-3xl">
       <Link href="/practice" className="mb-4 inline-flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary">
         <ArrowLeft className="h-4 w-4" />
-        返回题库
+        返回练习
       </Link>
 
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
           <Zap className="h-6 w-6 text-brand" />
-          专项强化
+          AI 生成专项练习
         </h1>
         <p className="mt-1 text-sm text-text-secondary">
-          AI 根据你的水平动态生成针对性练习题
+          基于选定领域，AI 自动生成针对性练习题
         </p>
       </div>
 
-      {/* 配置区 */}
       <div className="rounded-xl border border-border bg-surface p-6 mb-6">
         <div className="mb-4">
           <label className="mb-2 block text-sm font-medium text-text-primary">
-            选择领域
+            选择知识领域
           </label>
           {loadingCategories ? (
             <div className="flex items-center gap-2 text-sm text-text-muted">
@@ -155,9 +161,7 @@ export default function TopicDrillPage() {
               ))}
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedTopic("custom");
-                }}
+                onClick={() => setSelectedTopic("custom")}
                 className={cn(
                   "rounded-lg border px-3 py-1.5 text-sm transition-colors",
                   selectedTopic === "custom"
@@ -174,7 +178,7 @@ export default function TopicDrillPage() {
             <input
               value={customTopic}
               onChange={(e) => setCustomTopic(e.target.value)}
-              placeholder="输入领域名称，如：React Hooks、Event Loop..."
+              placeholder="输入领域名称，如：React Hooks、Event Loop、系统设计..."
               className="mt-3 w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-input-focus placeholder:text-text-muted"
             />
           )}
@@ -210,7 +214,7 @@ export default function TopicDrillPage() {
               领域：<span className="font-medium text-text-primary">{effectiveTopic}</span>
               {result && (
                 <span className="ml-2">
-                  · 当前水平：<span className="font-medium text-text-primary">Level {result.user_level}</span>
+                  · 预估水平：<span className="font-medium text-text-primary">Level {result.user_level}</span>
                   <span className="ml-1 text-text-muted">（{levelHint[result.user_level] || "中等难度"}）</span>
                 </span>
               )}
@@ -244,16 +248,35 @@ export default function TopicDrillPage() {
         </button>
       </div>
 
-      {/* 生成结果 */}
       {result && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-text-primary">
-              已生成 {result.generated_count} 道题目
-            </h2>
-            <span className="text-sm text-text-muted">
-              {effectiveTopic} · Level {result.user_level}
-            </span>
+          <div className="rounded-xl border border-brand/30 bg-brand/5 p-6">
+            <div className="text-center mb-4">
+              <h2 className="text-lg font-semibold text-text-primary">
+                {result.drill_name}
+              </h2>
+              <p className="mt-1 text-sm text-text-secondary">
+                {result.generated_count} 道题目 · {effectiveTopic}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={startDrill}
+              disabled={starting}
+              className="w-full rounded-lg bg-brand py-3 text-sm font-medium text-text-inverse hover:bg-brand-hover disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {starting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  启动中...
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4" />
+                  开始练习
+                </>
+              )}
+            </button>
           </div>
 
           <div className="space-y-3">
@@ -262,10 +285,12 @@ export default function TopicDrillPage() {
                 key={q.id}
                 className="rounded-xl border border-border bg-surface p-4"
               >
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-surface-muted text-sm font-medium text-text-muted">
+                    {idx + 1}
+                  </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs text-text-muted">#{idx + 1}</span>
                       <span className={cn("text-sm font-medium", difficultyColors[q.difficulty])}>
                         {difficultyLabels[q.difficulty]}
                       </span>
@@ -273,30 +298,7 @@ export default function TopicDrillPage() {
                     <h3 className="text-base font-medium text-text-primary line-clamp-2">
                       {q.title}
                     </h3>
-                    <p className="mt-1 text-sm text-text-secondary line-clamp-2">
-                      {q.content}
-                    </p>
-                    {q.knowledge_points.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {q.knowledge_points.slice(0, 3).map((kp, i) => (
-                          <span
-                            key={`${kp}-${i}`}
-                            className="rounded-full bg-surface-muted px-2 py-0.5 text-xs text-text-muted"
-                          >
-                            {kp}
-                          </span>
-                        ))}
-                      </div>
-                    )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => startPractice(q.id)}
-                    className="shrink-0 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-text-inverse hover:bg-brand-hover flex items-center gap-1"
-                  >
-                    练习
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
                 </div>
               </div>
             ))}
@@ -314,12 +316,11 @@ export default function TopicDrillPage() {
         </div>
       )}
 
-      {/* 空状态 */}
       {!result && !generating && (
         <div className="rounded-xl border border-dashed border-border bg-surface/50 p-8 text-center">
           <BookOpen className="h-12 w-12 mx-auto text-text-muted mb-3" />
           <p className="text-sm text-text-muted">
-            选择领域后点击生成，AI 将根据你的水平动态创建练习题
+            选择领域后点击生成，AI 将根据知识库创建练习题
           </p>
         </div>
       )}

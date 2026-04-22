@@ -20,6 +20,7 @@ from app.db.session import Base
 def generate_uuid():
     return str(uuid.uuid4())
 
+
 """
 Design: Core Data Models
 核心设计：
@@ -240,13 +241,16 @@ class Notification(Base):
     - 状态流转：pending -> sent / failed，每次发送记录 sent_at 和 error_msg
     - 支持 scheduled_at 延迟发送，sent_at 非空表示已发送
     """
+
     __tablename__ = "notifications"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     user_id = Column(String(36), nullable=False, default="default-user")
     notif_type = Column(String(50), nullable=False)  # interview_reminder | stale_alert
     channel = Column(String(20), nullable=False, default="webhook")  # webhook | email
-    status = Column(String(20), nullable=False, default="pending")  # pending | sent | failed
+    status = Column(
+        String(20), nullable=False, default="pending"
+    )  # pending | sent | failed
     title = Column(String(255), nullable=False, default="")
     content = Column(Text, nullable=False, default="")
     target_id = Column(String(36), nullable=True)  # company_id / interview_id
@@ -268,6 +272,7 @@ class QuestionCategory(Base):
     Design: Question Training System - Knowledge Category
     知识领域分类，支持树形结构（parent_id 自关联）
     """
+
     __tablename__ = "question_categories"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
@@ -285,22 +290,29 @@ class Question(Base):
     Design: Question Training System - Question Bank
     题目表：支持多种题型，按知识点/难度/公司标签组织
     """
+
     __tablename__ = "questions"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    category_id = Column(String(36), ForeignKey("question_categories.id"), nullable=False)
+    category_id = Column(
+        String(36), ForeignKey("question_categories.id"), nullable=False
+    )
     title = Column(String(255), nullable=False)
     content = Column(Text, nullable=False)
     answer_template = Column(Text, nullable=False)
     difficulty = Column(Integer, nullable=False, default=3)  # 1-5
     knowledge_points = Column(JSON, nullable=False, default=list)
     company_tags = Column(JSON, nullable=False, default=list)
-    question_type = Column(String(50), nullable=False, default="open_ended")  # open_ended | multiple_choice
+    question_type = Column(
+        String(50), nullable=False, default="open_ended"
+    )  # open_ended | multiple_choice
     options = Column(JSON, nullable=True, default=None)  # 选择题选项
     hints = Column(JSON, nullable=False, default=list)
     vector = Column(JSON, nullable=True, default=None)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     __table_args__ = (
         Index("ix_questions_category", "category_id"),
@@ -316,6 +328,7 @@ class UserQuestionPerformance(Base):
     Design: Question Training System - User Performance Record
     用户练习表现记录，关联 Question 和画像 Evidence
     """
+
     __tablename__ = "user_question_performance"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
@@ -334,3 +347,133 @@ class UserQuestionPerformance(Base):
     )
 
     question = relationship("Question", back_populates="performances")
+
+
+class Drill(Base):
+    """
+    领域题目组：按领域/知识点组织的一组题目
+    """
+
+    __tablename__ = "drills"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    name = Column(String(255), nullable=False)  # 题目组名称
+    description = Column(Text, nullable=False, default="")  # 描述
+    topic = Column(String(100), nullable=False)  # 领域/主题
+    difficulty = Column(Integer, nullable=False, default=3)  # 整体难度 1-5
+    question_ids = Column(JSON, nullable=False, default=list)  # 题目ID列表
+    knowledge_points = Column(JSON, nullable=False, default=list)  # 关联知识点
+    estimated_duration_minutes = Column(
+        Integer, nullable=False, default=30
+    )  # 预计完成时间
+    is_system = Column(Integer, nullable=False, default=0)  # 0=用户创建, 1=系统预置
+    created_by = Column(String(36), nullable=False, default="system")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    __table_args__ = (
+        Index("ix_drills_topic", "topic"),
+        Index("ix_drills_created_by", "created_by"),
+    )
+
+
+class DrillSession(Base):
+    """
+    题目组练习会话：记录整组题目的完成情况
+    """
+
+    __tablename__ = "drill_sessions"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), nullable=False)
+    drill_id = Column(String(36), ForeignKey("drills.id"), nullable=False)
+    status = Column(
+        String(50), nullable=False, default="in_progress"
+    )  # in_progress, completed, abandoned
+    current_question_index = Column(
+        Integer, nullable=False, default=0
+    )  # 当前做到第几题
+    answers = Column(
+        JSON, nullable=False, default=list
+    )  # [{question_id, answer, score, time_spent_seconds, submitted_at}]
+    total_score = Column(Integer, nullable=True)  # 整组总分（满分100*题目数）
+    average_score = Column(Integer, nullable=True)  # 平均分 0-100
+    total_time_spent_seconds = Column(Integer, nullable=False, default=0)
+    started_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_drill_sessions_user", "user_id"),
+        Index("ix_drill_sessions_drill", "drill_id"),
+        Index("ix_drill_sessions_status", "status"),
+        Index("ix_drill_sessions_user_completed", "user_id", "completed_at"),
+    )
+
+    drill = relationship("Drill")
+
+
+class EightPartTemplate(Base):
+    """八股题目模板：固定面试题型"""
+
+    __tablename__ = "eight_part_templates"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    category = Column(String(50), nullable=False)
+    title = Column(String(255), nullable=False)
+    content = Column(Text, nullable=False)
+    answer_template = Column(Text, nullable=False, default="")
+    difficulty = Column(Integer, nullable=False, default=3)
+    tips = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (Index("ix_eight_part_category", "category"),)
+
+
+class KnowledgeItem(Base):
+    """知识库条目：存储可生成题目的知识点"""
+
+    __tablename__ = "knowledge_items"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    category = Column(String(100), nullable=False, default="未分类")
+    title = Column(String(255), nullable=False)
+    content = Column(Text, nullable=False, default="")
+    concepts = Column(JSON, nullable=False, default=list)
+    examples = Column(JSON, nullable=False, default=list)
+    tags = Column(JSON, nullable=False, default=list)
+    difficulty_min = Column(Integer, nullable=False, default=1)
+    difficulty_max = Column(Integer, nullable=False, default=5)
+    vector = Column(JSON, nullable=True, default=None)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_knowledge_items_category", "category"),
+        Index("ix_knowledge_items_tags", "tags"),
+    )
+
+
+class GeneratedQuestion(Base):
+    """AI生成的题目（基于知识库实时生成）"""
+
+    __tablename__ = "generated_questions"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    drill_id = Column(String(36), ForeignKey("drills.id"), nullable=False)
+    knowledge_item_id = Column(
+        String(36), ForeignKey("knowledge_items.id"), nullable=True
+    )
+    title = Column(String(255), nullable=False)
+    content = Column(Text, nullable=False)
+    answer_template = Column(Text, nullable=False, default="")
+    difficulty = Column(Integer, nullable=False, default=3)
+    knowledge_points = Column(JSON, nullable=False, default=list)
+    hints = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_generated_questions_drill", "drill_id"),
+        Index("ix_generated_questions_knowledge_item", "knowledge_item_id"),
+    )

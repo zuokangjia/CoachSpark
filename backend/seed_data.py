@@ -10,7 +10,7 @@ from datetime import date, timedelta
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app.db.session import SessionLocal, engine, Base
-from app.db.models import Company, Interview, UserProfile, Resume, QuestionCategory, Question, generate_uuid
+from app.db.models import Company, Interview, UserProfile, Resume, QuestionCategory, Question, Drill, generate_uuid
 
 Base.metadata.create_all(bind=engine)
 db = SessionLocal()
@@ -221,6 +221,109 @@ def _seed_questions(db):
         db.add(q)
 
     print(f"  Seeded {len(questions_data)} questions in {len(categories)} categories")
+
+
+def _seed_drills(db):
+    """Seed default drill sets organized by topic (idempotent)."""
+    existing_count = db.query(Drill).count()
+    if existing_count > 0:
+        print(f"  Drills already seeded ({existing_count} drills found), skipping...")
+        return
+
+    # 定义领域题目组
+    drill_definitions = [
+        {
+            "name": "React 核心基础",
+            "topic": "React",
+            "description": "React 核心概念与 Hooks 基础题目组，适合巩固 React 基础",
+            "difficulty": 3,
+            "estimated_duration_minutes": 20,
+            "knowledge_points": ["React", "Hooks", "useState", "useEffect"],
+            "question_filters": {"category_name": "React", "difficulty": [2, 3, 4]},
+        },
+        {
+            "name": "JavaScript 基础巩固",
+            "topic": "JavaScript",
+            "description": "JavaScript 核心概念与异步编程基础题目",
+            "difficulty": 3,
+            "estimated_duration_minutes": 25,
+            "knowledge_points": ["JavaScript", "闭包", "Promise", "Event Loop"],
+            "question_filters": {"category_name": "JavaScript", "difficulty": [2, 3, 4]},
+        },
+        {
+            "name": "前端性能优化专项",
+            "topic": "性能优化",
+            "description": "前端性能优化策略与实践，包括渲染优化和资源优化",
+            "difficulty": 4,
+            "estimated_duration_minutes": 30,
+            "knowledge_points": ["性能优化", "首屏优化", "Webpack", "缓存策略"],
+            "question_filters": {"category_name": "性能优化", "difficulty": [3, 4, 5]},
+        },
+        {
+            "name": "系统设计入门",
+            "topic": "系统设计",
+            "description": "前端系统设计基础，组件库设计和监控 SDK 设计",
+            "difficulty": 4,
+            "estimated_duration_minutes": 35,
+            "knowledge_points": ["系统设计", "组件库设计", "前端监控"],
+            "question_filters": {"category_name": "系统设计", "difficulty": [4, 5]},
+        },
+        {
+            "name": "算法与数据结构",
+            "topic": "算法",
+            "description": "常见算法题目，数组操作和字符串处理",
+            "difficulty": 3,
+            "estimated_duration_minutes": 40,
+            "knowledge_points": ["算法", "数组", "字符串", "双指针"],
+            "question_filters": {"category_name": "算法", "difficulty": [2, 3, 4]},
+        },
+        {
+            "name": "CSS 布局与原理",
+            "topic": "CSS",
+            "description": "CSS 布局原理和渲染机制",
+            "difficulty": 3,
+            "estimated_duration_minutes": 20,
+            "knowledge_points": ["CSS", "Flexbox", "Grid", "BFC"],
+            "question_filters": {"category_name": "CSS", "difficulty": [2, 3, 4]},
+        },
+    ]
+
+    created_count = 0
+    for drill_def in drill_definitions:
+        # 查找符合条件的题目
+        from sqlalchemy import func
+        
+        category_name = drill_def["question_filters"]["category_name"]
+        difficulties = drill_def["question_filters"]["difficulty"]
+        
+        # 获取该分类下的题目
+        questions = db.query(Question).join(QuestionCategory).filter(
+            QuestionCategory.name == category_name,
+            Question.difficulty.in_(difficulties)
+        ).limit(5).all()
+        
+        if len(questions) < 2:
+            # 题目不足，跳过
+            continue
+        
+        question_ids = [q.id for q in questions]
+        
+        drill = Drill(
+            id=generate_uuid(),
+            name=drill_def["name"],
+            description=drill_def["description"],
+            topic=drill_def["topic"],
+            difficulty=drill_def["difficulty"],
+            question_ids=question_ids,
+            knowledge_points=drill_def["knowledge_points"],
+            estimated_duration_minutes=drill_def["estimated_duration_minutes"],
+            is_system=1,
+            created_by="system",
+        )
+        db.add(drill)
+        created_count += 1
+    
+    print(f"  Seeded {created_count} drill sets")
 
 
 def create_test_data():
@@ -791,6 +894,9 @@ def create_test_data():
 
         # Seed question bank
         _seed_questions(db)
+        
+        # Seed drill sets
+        _seed_drills(db)
 
         db.commit()
         print("=" * 60)
