@@ -15,11 +15,11 @@ from app.db.models import (
     UserSkillState,
     Drill,
     DrillSession,
-    KnowledgeItem,
     GeneratedQuestion,
     generate_uuid,
 )
 from app.services.rag_retrieval_service import embed_evidence_texts
+from app.services.knowledge_indexer import retrieve_knowledge_chunks
 
 
 DEFAULT_USER_ID = "default-user"
@@ -573,15 +573,21 @@ async def generate_topic_drill_questions(
     difficulty_range = difficulty_map.get(user_level, "2-3")
     focus_hint = focus_map.get(user_level, "重点考察深度理解")
 
-    knowledge_items = (
-        db.query(KnowledgeItem).filter(KnowledgeItem.category == topic).limit(10).all()
+# 语义检索相关知识块（替代原来的 category 查询）
+    search_results = retrieve_knowledge_chunks(
+        db,
+        query_text=topic,
+        user_id=user_id,
+        top_k=10,
+        min_score=0.2,
+        category=None,
     )
 
-    if knowledge_items:
+    if search_results:
         knowledge_context = "\n\n".join(
             [
-                f"### {k.title}\n{k.content}\n概念: {', '.join(k.concepts)}\n示例: {'; '.join(k.examples)}"
-                for k in knowledge_items
+                f"### {r['title']}\n{r['content']}"
+                for r in search_results
             ]
         )
     else:
@@ -672,13 +678,10 @@ JSON，只输出 JSON：
 
         generated = []
         for i, q_data in enumerate(questions_list):
-            k_item = (
-                knowledge_items[i % len(knowledge_items)] if knowledge_items else None
-            )
             gq = GeneratedQuestion(
                 id=generate_uuid(),
                 drill_id=drill.id,
-                knowledge_item_id=k_item.id if k_item else None,
+                knowledge_item_id=None,
                 title=q_data.get("title", "")[:255],
                 content=q_data.get("content", ""),
                 answer_template=q_data.get("answer_template", ""),

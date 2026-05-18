@@ -477,3 +477,57 @@ class GeneratedQuestion(Base):
         Index("ix_generated_questions_drill", "drill_id"),
         Index("ix_generated_questions_knowledge_item", "knowledge_item_id"),
     )
+
+
+class KnowledgeDocument(Base):
+    """
+    Design: Knowledge Base - Document
+    知识文档：来自外部导入的 Markdown 文件
+    """
+
+    __tablename__ = "knowledge_documents"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), nullable=False, default="default-user")
+    name = Column(String(255), nullable=False)
+    category = Column(String(100), nullable=False, default="未分类")
+    source = Column(String(50), nullable=False, default="markdown")
+    tags = Column(JSON, nullable=False, default=list)
+    file_path = Column(String(500), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_knowledge_documents_user", "user_id"),
+        Index("ix_knowledge_documents_category", "category"),
+    )
+
+    chunks = relationship("KnowledgeChunk", back_populates="document", cascade="all, delete-orphan")
+
+
+class KnowledgeChunk(Base):
+    """
+    Design: Knowledge Base - Chunk
+    知识块：文档切分后的文本片段，支持向量检索
+    """
+
+    __tablename__ = "knowledge_chunks"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    document_id = Column(
+        String(36), ForeignKey("knowledge_documents.id"), nullable=False
+    )
+    parent_id = Column(String(36), nullable=True)
+    title = Column(String(255), nullable=False, default="")
+    content = Column(Text, nullable=False)
+    order_index = Column(Integer, nullable=False, default=0)
+    concepts = Column(JSON, nullable=False, default=list)
+    tags = Column(JSON, nullable=False, default=list)
+    vector = Column(JSON, nullable=True, default=None)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_knowledge_chunks_document", "document_id"),
+        Index("ix_knowledge_chunks_parent", "parent_id"),
+    )
+
+    document = relationship("KnowledgeDocument", back_populates="chunks")
